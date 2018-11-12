@@ -44,7 +44,7 @@ public:
 		temp = grayImage.clone();
 		undistort(temp, grayImage, cameraMatrix, distortionCoefficients);
 
-		// Was bei jedem neuen Fram gemacht wird
+		// Was bei jedem neuen Frame gemacht wird
 		show_gray_picture();
 		show_depth_picture();
 	}
@@ -99,7 +99,7 @@ public:
 		double scale = 255/(max-min);
 		cv::convertScaleAbs(zImage, depth_CV_8UC1, scale);
 
-		// Einfärbung mit COLORMAP_RAINBOW
+		// Einfaerbung mit COLORMAP_RAINBOW
 		cv::Mat color_map;
 		cv::applyColorMap(depth_CV_8UC1, color_map, cv::COLORMAP_RAINBOW);
 
@@ -113,20 +113,26 @@ public:
 	void open_video_files(string filename, double fps, cv::Size frame_size) {
 		// uint16_t fps; cameraDevice->getFramerate(fps) -> fps=fps
 		// cv::Size bild(zImage.rows, zImage.cols) -> frame_size=bild
-		string file_gray = filename + "_gray.avi";
-		string file_depth = filename + "_depth.avi";
+		file_gray = filename + "_gray.avi";
+		file_depth = filename + "_depth.avi";
 
 		vw_gray.open(file_gray, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), fps, frame_size, false);
 		vw_depth.open(file_depth, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), fps, frame_size, true);
 	}
 
 	void write_video_files() {
-		//
+        vw_gray.write(grayImage);
+        vw_depth.write(zImage);
 	}
 
 	void close_video_files() {
-		//
+        vw_gray.release();
+        vw_depth.release();
 	}
+    
+    string get_file_gray() { return file_gray; }
+    
+    string get_file_depth() { return file_depth; }
 
 private:
 	cv::Mat zImage, grayImage;
@@ -134,6 +140,8 @@ private:
 	mutex flagMutex;
 
 	cv::VideoWriter vw_gray, vw_depth;
+    string file_gray = NULL;
+    string file_depth = NULL;
 };
 
 
@@ -153,8 +161,7 @@ int main(int argc, char *argv[]) {
 
 		if (!camlist.empty()) {
 			cameraDevice = manager.createCamera(camlist[0]);
-		}
-		else {
+		} else {
 			cerr << "No suitable camera device detected." << endl
 				<< "Please make sure that a supported camera is plugged in, all drivers are "
 				<< "installed, and you have proper USB permission" << endl;
@@ -165,7 +172,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	// the camera device is now available and CameraManager can be deallocated here
-
 	if (cameraDevice == nullptr) {
 		// no cameraDevice available
 		if (argc > 1) {
@@ -203,55 +209,111 @@ int main(int argc, char *argv[]) {
 
 	// Belichtung muss auf Automatisch gesetzt werden
 	cameraDevice->setExposureMode(royale::ExposureMode::AUTOMATIC);
+    
+    
+    // Uebergabeparameter abfragen
+    // Parameter:
+    //        argv[0] -> Programm     (benštigt)
+    //        argv[1] -> 1/2/3        (ggf.)
+    //      argv[2] -> Dateiname    (ggf.)
+    if (argc > 1) {
+        // Parameterauswertung
+        int param = 0;
+        string filename;
+        
+        if (argc == 2) {
+            // Programm + 1/2/3
+            if (argv[1] == "1" || argv[1] == "2" || argv[1] == "3") {
+                param = (int)argv[1];
+                std::cout << "Bitte Praefix der Videodatei eingeben:" << endl;
+                cin >> filename;
+            }
+        } else if(argc == 3) {
+            // Programm + 1/2/3 [+ Dateiname]
+            if (argv[1] == "1" || argv[1] == "2" || argv[1] == "3") {
+                param = (int)argv[1];
+                filename = (string)argv[2];
+            }
+        }
+        
+        // Gucken, was gemacht wird
+        switch (param) {
+            case 1:
+                // Auswertung starten
+                std::cout << "Aufruf der Auswertung (kommt spŠter)" << endl;
+                return 0;
+            case 2:
+            case 3:
+                // Nur Videoaufzeichnung
+                std::cout << "Videoaufzeichnung" << endl;
+                
+                // VideoCapture um Video aufzunehmen
+                cv::VideoCapture capture(0);
+                if (!capture.isOpened()) {
+                    cerr << "Fehler beim …ffnen des Video-Streams" << endl;
+                    return -1;
+                }
+                
+                // VideoWriter šffnen
+                uint16_t fps;
+                cameraDevice->getFramerate(fps);
+                cv::Size bild(zImage.rows, zImage.cols);
+                listener.open_video_files(filename, fps, bild);
+                
+                // Video aufnehmen (10 Sekunden aka 300 Frames weil 30FPS-Kamera)
+                int i = 0;
+                while (i < 10*fps) {
+                    listener.write_video_files();
+                }
+                
+                capture.release();
+                listener.close_video_files();
+                
+                if (param == 3) {
+                    // Video anzeigen (beide aus den Dateien)
+                    cv::VideoCapture viewer(listener.get_file_depth());
+                    if (!viewer.isOpened()) {
+                        cerr << "Fehler beim …ffnen des Tiefen-Videos" << endl;
+                        return -1;
+                    }
+                    
+                    for (;;) {
+                        Mat frame;
+                        if (!viewer.read(frame)) {
+                            cerr << "Fehler beim Lesen der Video-Daten" << endl;
+                            return -1;
+                        }
+                        
+                        if (!frame) {
+                            break;
+                        }
+                        
+                        cv::imshow("Aufgenommenes Tiefenvideo", frame);
+                    }
+                    
+                    viewer.release();
+                }
+                
+                return 0
+            default:
+                return 1;
+        }
+    }
+    
 	
+    // Ganz normales Vorgehen nach Code-GerŸst!
 	// start capture mode
 	if (cameraDevice->startCapture() != royale::CameraStatus::SUCCESS) {
 		cerr << "Error starting the capturing" << endl;
 		return 1;
 	}
-
-
-	/*
-		Hier alles aus dem Praktikum
-	*/
-	// Übergabeparameter überprüfen
-	// Parameter:
-	//		argv[0] -> Programm
-	//		argv[1] -> Kamera ODER 1/2/3
-	int param = 0;
-	if (argc > 1) {
-		if (argc == 2) {
-			// Programm + Kamera ODER Programm + 1/2/3
-			if (argv[1] == "1" || argv[1] == "2" || argv[1] == "3") {
-				param = (int)argv[1];
-			}
-		} else {
-			// Programm + Kamera + 1/2/3 [+ ...]
-			if (argv[2] == "1" || argv[2] == "2" || argv[2] == "3") {
-				param = (int)argv[2];
-			}
-		}
-	}
-
-	if (param != 0) {
-		switch (param) {
-		case 1:
-			std::cout << "Aufruf der Auswertung" << endl;
-		case 2:
-			// 1. Präfix des Videodateinames einlesen (oder Parameter)
-			// 2. Max. Bildgröße und max. Framerate abbfragen -> an MyListener abgeben
-			// 3. ggf. Belichtungsmodus setzen
-			// 4. Video abspeichern (gewisse Anzahl an Sekunden?)
-			std::cout << "Bitte Präfix des Videodateinamens eingeben:" << endl;
-		case 3:
-			// Wie bei 2 nur noch mit abspielen!
-		default:
-			break;
-		}
-	}
-
-	// Die Endlosschleife
+    
+    
+    // Endlosschleife fŸr ganz normale Anzeige der Tiefen- / Grauwertbilder usw.
 	for (;;) {
+        // Warte auf ein Enter
+        char key = (char)waitKey(1);
+        if (key == 13) { break; }
 	}
 
 

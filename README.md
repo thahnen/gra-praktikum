@@ -26,8 +26,11 @@ Das Praktikumsprojekt bestehend aus einer großen Aufgabe für 3 Praktikumstermi
 * 2: Videos aufzeichnen mit übergebenem Dateinamen für Grauwert- und Tiefen-Bild
 * 3: wie bei 2: aber noch mit abspielen der Videos
 
+### Praktikum 2:
+...folgt...
+
 ### GitHub-Aufbau:
-1. Ordner "royale":
+1. ZIP-Datei "royale.zip":
 * SDK Bibliothek für die verwendete ["PMD Technologies CamBoard pico flexx" - Kamera](https://www.automation24.de/entwicklungs-kit-pmd-vision-r-camboard-pico-flexx-700-000-094)
 2. Ordner "Visual Studio":
 * **GRA-Praktikum.props** beinhaltet Einstellungen für Linker etc.
