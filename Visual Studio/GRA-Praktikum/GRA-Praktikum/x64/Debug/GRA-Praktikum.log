@@ -1,7 +1,0 @@
-﻿  gra-praktikum.cpp
-z:\dokumente\gra-praktikum\gra-praktikum\gra-praktikum.cpp(226): warning C4311: "Typumwandlung": Zeigerverkürzung von "char *" zu "int"
-z:\dokumente\gra-praktikum\gra-praktikum\gra-praktikum.cpp(226): warning C4302: "Typumwandlung": Verkürzung von "char *" in "int"
-z:\dokumente\gra-praktikum\gra-praktikum\gra-praktikum.cpp(231): warning C4311: "Typumwandlung": Zeigerverkürzung von "char *" zu "int"
-z:\dokumente\gra-praktikum\gra-praktikum\gra-praktikum.cpp(231): warning C4302: "Typumwandlung": Verkürzung von "char *" in "int"
-  GRA-Praktikum.vcxproj -> Z:\Dokumente\GRA-Praktikum\x64\Debug\GRA-Praktikum.exe
-  GRA-Praktikum.vcxproj -> Z:\Dokumente\GRA-Praktikum\x64\Debug\GRA-Praktikum.pdb (Partial PDB)
