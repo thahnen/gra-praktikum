@@ -20,7 +20,6 @@ class MyListener : public royale::IDepthDataListener {
 public:
 	void onNewData(const royale::DepthData *data) {
 		// this callback function will be called for every new depth frame
-
 		lock_guard<mutex> lock(flagMutex);
 		zImage.create(cv::Size(data->width, data->height), CV_32FC1);
 		grayImage.create(cv::Size(data->width, data->height), CV_32FC1);
@@ -44,6 +43,13 @@ public:
 		temp = grayImage.clone();
 		undistort(temp, grayImage, cameraMatrix, distortionCoefficients);
 
+        
+/****************************************************************************\
+ * ANFANG
+ * Praktikum 1/2 Inhaltliche Veränderungen
+\****************************************************************************/
+
+        
 		// Was bei jedem neuen Frame gemacht wird
 		show_gray_picture();
 		show_depth_picture();
@@ -52,6 +58,14 @@ public:
 		if (mode == 2) {
 			write_video_files();
 		}
+        
+        
+/****************************************************************************\
+ * Praktikum 1/2 Inhaltliche Veränderungen
+ * ENDE
+\****************************************************************************/
+        
+        
 	}
 
 	void setLensParameters(const royale::LensParameters &lensParameters) {
@@ -71,8 +85,14 @@ public:
 			lensParameters.distortionTangential.second,
 			lensParameters.distortionRadial[2]);
 	}
+    
+    
+/****************************************************************************\
+ * ANFANG
+ * Praktikum 1/2 Inhaltliche Veränderungen
+\****************************************************************************/
 
-	// Im Praktikum hinzugefuegt
+    
 	void show_gray_picture() {
 		// Kontrastspreizung
 		cv::Mat mask;
@@ -88,7 +108,7 @@ public:
 		grayImage_edit = gray_CV_8UC1;
 
 		// Anzeigen (kann weg)
-		cv::imshow("Gray (edit)", gray_CV_8UC1);
+		cv::imshow("Gray (edit)", grayImage_edit);
 		cv::waitKey(1);
 	}
 
@@ -111,7 +131,7 @@ public:
 		zImage_edit = color_map;
 
 		// Anzeigen (kann weg)
-		cv::imshow("Depth (Edit)", color_map);
+		cv::imshow("Depth (Edit)", zImage_edit);
 		cv::waitKey(1);
 	}
 
@@ -154,20 +174,50 @@ public:
 
 	void setMode(int nmode) { mode = nmode; }
 
+
+/****************************************************************************\
+ * Praktikum 1/2 Inhaltliche Veränderungen
+ * ENDE
+\****************************************************************************/
+
+    
 private:
-	cv::Mat zImage, grayImage, zImage_edit, grayImage_edit;
+	cv::Mat zImage, grayImage;
 	cv::Mat cameraMatrix, distortionCoefficients;
 	mutex flagMutex;
 
+    
+/****************************************************************************\
+ * ANFANG
+ * Praktikum 1/2 Inhaltliche Veränderungen
+\****************************************************************************/
+    
+
+    cv::Mat zImage_edit, grayImage_edit;
 	cv::VideoWriter vw_gray, vw_depth;
 	string file_gray;
 	string file_depth;
 	int mode;
+    
+    
+/****************************************************************************\
+ * Praktikum 1/2 Inhaltliche Veränderungen
+ * ENDE
+\****************************************************************************/
+    
+    
 };
 
 
 int main(int argc, char *argv[]) {
 	MyListener listener;
+    
+    
+/****************************************************************************\
+ * ANFANG
+ * Praktikum 1/2 Inhaltliche Veränderungen
+\****************************************************************************/
+    
 	int param = 0;
 	string filename = "test"; // Default-Wert ggf. löschen!
 
@@ -197,9 +247,9 @@ int main(int argc, char *argv[]) {
 			cv::Mat frame;
 			int anzahl_frames = 0;
 			for (;;) {
+                cout << "Gelaufene Frames: " << anzahl_frames << endl;
+                
 				cap >> frame;
-				cout << "Gelaufene Frames: " << anzahl_frames << endl;
-
 				if (frame.empty()) {
 					cerr << "Frame ist leer" << endl;
 					break;
@@ -209,11 +259,15 @@ int main(int argc, char *argv[]) {
 				cv::waitKey(20);
 				anzahl_frames++;
 			}
-
 			return 0;
 		}
 	}
 
+    
+/****************************************************************************\
+ * Praktikum 1/2 Inhaltliche Veränderungen
+ * ENDE
+\****************************************************************************/
 
 
 	// this represents the main camera device object
@@ -287,7 +341,12 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	// Hier kommt das Praktikum rein
+/****************************************************************************\
+ * ANFANG
+ * Praktikum 1/2 Inhaltliche Veränderungen
+\****************************************************************************/
+    
+    
 	if (param == 2) {
 		listener.setMode(param);
 
@@ -324,6 +383,12 @@ int main(int argc, char *argv[]) {
 
 	cv::destroyAllWindows();
     cout << "Alle bestehenden Fenster schliessen" << endl;
+    
+    
+/****************************************************************************\
+ * Praktikum 1/2 Inhaltliche Veränderungen
+ * ENDE
+\****************************************************************************/
     
 
 	// stop capture mode

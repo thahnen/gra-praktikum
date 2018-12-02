@@ -24,7 +24,7 @@ Das Praktikumsprojekt bestehend aus einer großen Aufgabe für 3 Praktikumstermi
 * Auf Parameterübergabe abfragen
 * 1: später Auswertung, hier noch nicht
 * 2: Videos aufzeichnen mit übergebenem Dateinamen für Grauwert- und Tiefen-Bild
-* 3: wie bei 2: aber noch mit abspielen der Videos
+* 3: Aufgenommenes Video abspielen, Dateinamen übergeben
 
 ### Praktikum 2:
 ...folgt...
@@ -34,4 +34,4 @@ Das Praktikumsprojekt bestehend aus einer großen Aufgabe für 3 Praktikumstermi
 * SDK Bibliothek für die verwendete ["PMD Technologies CamBoard pico flexx" - Kamera](https://www.automation24.de/entwicklungs-kit-pmd-vision-r-camboard-pico-flexx-700-000-094)
 2. Ordner "Visual Studio":
 * **GRA-Praktikum.props** beinhaltet Einstellungen für Linker etc.
-* **GRA-Praktukum** beinhaltet das Visual Studio Projekt
+* **GRA-Projekt** beinhaltet das Visual Studio Projekt
