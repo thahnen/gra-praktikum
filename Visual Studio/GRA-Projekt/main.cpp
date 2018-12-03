@@ -93,6 +93,7 @@ public:
 \****************************************************************************/
 
     
+    // Praktikum 1
 	void show_gray_picture() {
 		// Kontrastspreizung
 		cv::Mat mask;
@@ -112,6 +113,7 @@ public:
 		cv::waitKey(1);
 	}
 
+    // Praktikum 1
 	void show_depth_picture() {
 		// Kontrastspreizung
 		cv::Mat mask;
@@ -135,9 +137,8 @@ public:
 		cv::waitKey(1);
 	}
 
+    // Praktikum 1
 	void open_video_files(string filename, cv::Size bild_groesse, double fps) {
-		// uint16_t fps; cameraDevice->getFramerate(fps) -> fps=fps
-
 		string file_g = filename + "_gray.avi";
 		string file_d = filename + "_depth.avi";
 
@@ -159,20 +160,79 @@ public:
 		}
 	}
 
+    // Praktikum 1
 	void write_video_files() {
 		vw_gray.write(grayImage_edit);
 		vw_depth.write(zImage_edit);
 	}
 
+    // Praktikum 1
 	void close_video_files() {
 		vw_gray.release();
 		vw_depth.release();
 	}
 
+    // Praktikum 1
 	string get_file_gray() { return file_gray; }
+    // Praktikum 1
 	string get_file_depth() { return file_depth; }
-
+    // Praktikum 1
 	void setMode(int nmode) { mode = nmode; }
+    
+    // Praktikum 2
+    /*
+    void glaettung_grauwerte() {
+        if (glaettung_frame < 21) {
+            // Fuer die ersten 20 Frames Mittelwert berechnen
+            glaettung_grauwerte = (glaettung_grauwerte + grayImage_edit)/2;
+            glaettung_frame++;
+        } else {
+            // Anwendung Medianfilter (Groesse 3x3)
+            cv::Mat median_bild = grayImage_edit.clone();
+            cv::medianBlur(grayImage_edit, median_bild, cv::Size(3, 3));
+            // Anwendung Mittelwertfilter
+            cv::Mat mittelwert_bild = grayImage_edit.clone();
+            cv::blur(grayImage_edit, mittelwert_bild, cv::Size(3, 3));
+            
+            // Linienprofil für Mittelwert (20 Frames) zeichnen
+            
+            // Linienprofil für Medianfilter zeichnen
+            
+            // Linienprofil für Mittelwertfilter zeichen
+        }
+    }
+     */
+    
+    // Praktikum 2
+    /*
+    void auswertung_geglaettete_grauwerte() {
+        // SIEHE: http://answers.opencv.org/question/120698/drawning-labeling-components-in-a-image-opencv-c/
+        // Schwellwertsegmentierung (OTSU) -> Threshold so richtig?
+        // ggf. vor OTSU noch ein Closing durchführen?
+        cv::Mat grau_otsu = grayImage_edit.clone()
+        cv::threshold(grayImage_edit, grau_otsu, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+        
+        // Schwellwertsegmentierung (Adaptiv) -> ADAPTIVE_THRESH_MEAN_C oder  ADAPTIVE_THRESH_GAUSSIAN_C ?
+        // ggf. vor Adaptiv noch ein Closing durchführen?
+        cv::Mat grau_adaptiv = grayImage_edit.clone();
+        cv::adaptiveThreshold(grayImage_edit, grau_adaptiv, 255, ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY, 3, 1);
+        
+        // Segmentierte Regionen labeln:
+        // -> Pixel zu Connected Components zusammenfassen (anhand welches Eingangsbildes grau_otsu oder grau_adaptiv ?)
+        cv::Mat label_image, stat, centroid;
+        int labels = cv::connectedComponentsWithStats(grau_otsu, label_image, stat, centroid, 8, CV_32S);
+        
+        // -> Kleinste X/Y-Koordinate erhalten + Höhe/Breite
+        
+        // Gelabelte Connected Components sortieren
+        
+        // -> Richtige auswählen (ca. gleiche Abmaße)
+        
+        // -> je nach Ausrichtung nach X/Y-Koordinate sortieren
+        
+        // Tasten je nach Wert in Schleife Farbe zuweisen und einfärben
+    }
+     */
 
 
 /****************************************************************************\
@@ -193,11 +253,18 @@ private:
 \****************************************************************************/
     
 
+    // Praktikum 1
     cv::Mat zImage_edit, grayImage_edit;
 	cv::VideoWriter vw_gray, vw_depth;
 	string file_gray;
 	string file_depth;
 	int mode;
+    
+    // Praktikum 2
+    /*
+    cv::Mat glaettung_grauwert;
+    int glaettung_frame = 1;
+     */
     
     
 /****************************************************************************\

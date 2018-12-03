@@ -6,7 +6,6 @@ Das Praktikumsprojekt bestehend aus einer großen Aufgabe für 3 Praktikumstermi
 
 ## ~~Team~~-Member:
 1. Tobias Hahnen (1218710)
-2. ???
 
 ## Technik
 1. C++
@@ -20,14 +19,21 @@ Das Praktikumsprojekt bestehend aus einer großen Aufgabe für 3 Praktikumstermi
 * Beim Tiefen-Bild Kontrastspreizung ohne 0, Einfärbung und anzeigen
 2. Aufgabe:
 * Möglichkeit Bildaufnahme durch "Enter"-Drücken abbrechen
-2. Aufgabe:
+3. Aufgabe:
 * Auf Parameterübergabe abfragen
 * 1: später Auswertung, hier noch nicht
 * 2: Videos aufzeichnen mit übergebenem Dateinamen für Grauwert- und Tiefen-Bild
 * 3: Aufgenommenes Video abspielen, Dateinamen übergeben
 
 ### Praktikum 2:
-...folgt...
+1. Aufgabe:
+* Glättung der Grauwerte anhand von Medianfilter, Mittelwertfilter und Mittelwert über die ersten 20 Frames
+2. Aufgabe:
+* Schwellwertsegmentierung (OTSU + Adaptiv)
+* Labeln segmentierter Regionen (CC zusammenfaassen + Informationen bekommen)
+* Gelabelte CCs sortieren und Richtige auswählen (anhand Höhe + Breite)
+* Ausgewählte CCs sortieren (anhand X/Y-Koordinate) und Farben zuweisen
+* In Schleife nacheinander einfärben
 
 ### GitHub-Aufbau:
 1. ZIP-Datei "royale.zip":
