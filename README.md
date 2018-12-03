@@ -9,7 +9,7 @@ Das Praktikumsprojekt bestehend aus einer großen Aufgabe für 3 Praktikumstermi
 
 ## Technik
 1. C++
-* openCV-Bibliothek
+* OpenCV-Bibliothek
 * Royale-Bibliothek
 
 ## Informationen
@@ -34,6 +34,9 @@ Das Praktikumsprojekt bestehend aus einer großen Aufgabe für 3 Praktikumstermi
 * Gelabelte CCs sortieren und Richtige auswählen (anhand Höhe + Breite)
 * Ausgewählte CCs sortieren (anhand X/Y-Koordinate) und Farben zuweisen
 * In Schleife nacheinander einfärben
+
+### Praktikum 3:
+... kommt noch ...
 
 ### GitHub-Aufbau:
 1. ZIP-Datei "royale.zip":

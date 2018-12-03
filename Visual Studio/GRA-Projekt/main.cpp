@@ -174,7 +174,6 @@ public:
 
     // Praktikum 1
 	string get_file_gray() { return file_gray; }
-    // Praktikum 1
 	string get_file_depth() { return file_depth; }
     // Praktikum 1
 	void setMode(int nmode) { mode = nmode; }
@@ -231,7 +230,9 @@ public:
         // -> je nach Ausrichtung nach X/Y-Koordinate sortieren
         
         // Tasten je nach Wert in Schleife Farbe zuweisen und einfŠrben
-    }
+        for (;;) {
+            //
+        }
      */
 
 
@@ -288,20 +289,12 @@ int main(int argc, char *argv[]) {
 	int param = 0;
 	string filename = "test"; // Default-Wert ggf. lšschen!
 
-
 	// Parameter abfragen & enrsprechend handeln
 	if (argc > 1) {
-		if (atoi(argv[1]) == 1) {
-			string egal;
-			cout << "Aufruf der Auswertung (kommt spaeter):" << endl;
-			cin >> egal;
-			return 0;
-		}
-		else if (atoi(argv[1]) == 2) {
-			cout << "Bitte Datei-Praefix" << endl;
-			cin >> filename;
-			param = atoi(argv[1]);
-		} else if (atoi(argv[1]) == 3) {
+        param = atoi(argv[1]);
+        
+        if (param == 3) {
+            // Video abspielen und das wars dann
 			cout << "Bitte Datei-Namen des fertigen Videos eingeben" << endl;
 			cin >> filename;
 
@@ -312,22 +305,20 @@ int main(int argc, char *argv[]) {
 			}
 
 			cv::Mat frame;
-			int anzahl_frames = 0;
 			for (;;) {
-                cout << "Gelaufene Frames: " << anzahl_frames << endl;
-                
 				cap >> frame;
 				if (frame.empty()) {
 					cerr << "Frame ist leer" << endl;
 					break;
 				}
-
 				cv::imshow("Video (Tiefen)", frame);
 				cv::waitKey(20);
-				anzahl_frames++;
 			}
 			return 0;
-		}
+        } else if (param == 2) {
+            cout << "Bitte Datei-Praefix des aufnehmenden Videos eingeben" << endl;
+            cin >> filename;
+        }
 	}
 
     
@@ -399,7 +390,6 @@ int main(int argc, char *argv[]) {
 	// Belichtung muss auf Automatisch gesetzt werden
 	cameraDevice->setExposureMode(royale::ExposureMode::AUTOMATIC);
 
-
 	// Ganz normales Vorgehen nach Code-Geruest!
 	// start capture mode
 	if (cameraDevice->startCapture() != royale::CameraStatus::SUCCESS) {
@@ -415,20 +405,18 @@ int main(int argc, char *argv[]) {
     
     
 	if (param == 2) {
+        // Zum aufnehmen bereit machen
 		listener.setMode(param);
-
-		// VideoWriter öffnen
-		uint16_t height, width;
+		uint16_t height, width, fps;
 		cameraDevice->getMaxSensorWidth(width);
 		cameraDevice->getMaxSensorHeight(height);
 		cv::Size bild(width, height);
-		uint16_t fps;
 		cameraDevice->getFrameRate(fps);
 		listener.open_video_files(filename, bild, fps);
-
 		cout << "Videoaufnahme gestartet" << endl;
 	} else if (param == 1) {
-		cout << "Aufruf der Auswertung (kommt später)" << endl;
+        // Auswertung passiert genau hier
+		cout << "Aufruf der Auswertung (kommt spaeter)" << endl;
 		return 0;
 	}
 
@@ -463,7 +451,6 @@ int main(int argc, char *argv[]) {
 		cerr << "Error stopping the capturing" << endl;
 		return 1;
 	}
-	cout << "Kamera hat aufgehoert aufzunehmen" << endl;
 
 	return 0;
 }
