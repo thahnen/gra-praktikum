@@ -1,4 +1,4 @@
-﻿/****************************************************************************\
+/****************************************************************************\
 * Vorlage fuer das Praktikum "Graphische Datenverarbeitung" WS 2018/19
 * FB 03 der Hochschule Niedderrhein
 * Regina Pohle-Froehlich
@@ -119,7 +119,6 @@ public:
 		cv::waitKey(1);
 	}
 
-	// Praktikum 1
 	void show_depth_picture() {
 		// Kontrastspreizung
 		cv::Mat mask;
@@ -143,7 +142,6 @@ public:
 		cv::waitKey(1);
 	}
 
-	// Praktikum 1
 	void open_video_files(string filename, cv::Size bild_groesse, double fps) {
 		string file_g = filename + "_gray.avi";
 		string file_d = filename + "_depth.avi";
@@ -166,19 +164,16 @@ public:
 		}
 	}
 
-	// Praktikum 1
 	void write_video_files() {
 		vw_gray.write(grayImage_edit);
 		vw_depth.write(zImage_edit);
 	}
 
-	// Praktikum 1
 	void close_video_files() {
 		vw_gray.release();
 		vw_depth.release();
 	}
 
-	// Praktikum 1
 	string get_file_gray() { return file_gray; }
 	string get_file_depth() { return file_depth; }
 	void setMode(int nmode) { mode = nmode; }
@@ -187,7 +182,6 @@ public:
 	void setFrame(int frame) { glaettung_frame = frame; }
 	void set_mit_ueber_20_frames(vector<int> v) { mit_ueber_20_frames = v; };
 
-	// Praktikum 2
 	void glaettung_grauwerte() {
 		if (glaettung_frame < 21) {
 			// Fuer die ersten 20 Frames Mittelwert berechnen
@@ -265,19 +259,18 @@ public:
 		}
 	}
 
-	// Praktikum 2
 	void auswertung_geglaettete_grauwerte() {
 		// Weitermachen mit dem Median-gefilterten Bild
 
 		// SIEHE: http://answers.opencv.org/question/120698/drawning-labeling-components-in-a-image-opencv-c/
 		// Schwellwertsegmentierung (OTSU)
-		// ggf. vor OTSU noch ein Closing durchfuehren?
+		// ggf. vor OTSU noch ein Closing durchfuehren? -> Frau P.-F. meinte nicht noetig
 		cv::Mat grau_otsu = med_bild.clone();
 		cv::threshold(med_bild, grau_otsu, 0, 255, CV_THRESH_OTSU);
 		cv::imshow("OTSU", grau_otsu);
 
 		// Segmentierte Regionen labeln:
-		// -> Pixel zu Connected Components zusammenfassen (anhand welches Eingangsbildes grau_otsu oder grau_adaptiv ?)
+		// -> Pixel zu Connected Components zusammenfassen
 		cv::Mat label_image, stats, centroid;
 		int labels = cv::connectedComponentsWithStats(grau_otsu, label_image, stats, centroid, 8, CV_32S);
 		vector<int> tasten_labels;
@@ -295,6 +288,7 @@ public:
 			// Fläche
 			cout << "CC_STAT_AREA   = " << stats.at<int>(i, cv::CC_STAT_AREA) << endl;
 			// auswählen, ob es passt (bei mir 500 < AREA < 1500
+            // Frau P.-F. sagt das geht so und muss nicht umstaendlicher gemacht werden
 			if (stats.at<int>(i, cv::CC_STAT_AREA) > 500 && stats.at<int>(i, cv::CC_STAT_AREA) < 1500) {
 				tasten_labels.push_back(i);
 			}
@@ -309,7 +303,7 @@ public:
 
 		// -> je nach Ausrichtung nach X/Y-Koordinate sortieren
 
-		// Tasten je nach Wert in Schleife Farbe zuweisen und einf�rben
+		// Tasten je nach Wert in Schleife Farbe zuweisen und einfaerben
 	}
 
 
@@ -363,14 +357,13 @@ int main(int argc, char *argv[]) {
 	\****************************************************************************/
 
 	int param = 0;
-	string filename = "test"; // Default-Wert ggf. l�schen!
+	string filename = "test"; // Default-Wert ggf. loeschen!
 
-							  // Parameter abfragen & enrsprechend handeln
+    // Parameter abfragen & enrsprechend handeln
 	if (argc > 1) {
 		param = atoi(argv[1]);
 
 		if (param == 3) {
-			// Video abspielen und das wars dann
 			cout << "Bitte Datei-Namen des fertigen Videos eingeben" << endl;
 			cin >> filename;
 
@@ -483,26 +476,23 @@ int main(int argc, char *argv[]) {
 
 	listener.setMode(param);
 	listener.setFrame(0);
-	uint16_t h, w;
-	cameraDevice->getMaxSensorHeight(h);
-	cameraDevice->getMaxSensorWidth(w);
+	uint16_t height, width;
+    cameraDevice->getMaxSensorWidth(width);
+    cameraDevice->getMaxSensorHeight(height);
 	vector<int> v;
-	for (int i = 0; i < w*h; i++) {
-		v.push_back(0);
+	for (int i = 0; i < width*height; i++) {
+		v.push_back(0); // vlt. geht das irgendwie einfacher, die muessen ja alle einfach nur 0 sein
 	}
 	listener.set_mit_ueber_20_frames(v);
 
 	if (param == 2) {
 		// Zum aufnehmen bereit machen
-		uint16_t height, width, fps;
-		cameraDevice->getMaxSensorWidth(width);
-		cameraDevice->getMaxSensorHeight(height);
+		uint16_t fps;
 		cv::Size bild(width, height);
 		cameraDevice->getFrameRate(fps);
 		listener.open_video_files(filename, bild, fps);
 		cout << "Videoaufnahme gestartet" << endl;
-	}
-	else if (param == 1) {
+	} else if (param == 1) {
 		// Auswertung passiert genau hier
 		cout << "Aufruf der Auswertung (kommt spaeter)" << endl;
 		return 0;
@@ -514,9 +504,7 @@ int main(int argc, char *argv[]) {
 
 	// "Endlosschleife" fuer Anzeige der Tiefen- / Grauwertbilder usw. sowie Aufnahme der Bilder
 	for (;;) {
-		if (cv::waitKey(1) == 13) {
-			break;
-		}
+		if (cv::waitKey(1) == 13) { break; }
 	}
 
 	if (param == 2) {
