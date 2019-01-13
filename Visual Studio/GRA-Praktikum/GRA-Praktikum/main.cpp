@@ -12,6 +12,7 @@
 #include <mutex>
 #include <opencv2/opencv.hpp>
 
+#define debug false
 
 using namespace std;
 
@@ -46,11 +47,9 @@ public:
 
 		/****************************************************************************\
 		* ANFANG
-		* Praktikum 1/2 Inhaltliche Veraenderungen
+		* Praktikum 1/2/3 Inhaltliche Veraenderungen
 		\****************************************************************************/
 
-
-		// Was bei jedem neuen Frame gemacht wird
 		show_gray_picture();
 		show_depth_picture();
 
@@ -65,9 +64,8 @@ public:
 			auswertung_geglaettete_grauwerte();
 		}
 
-
 		/****************************************************************************\
-		* Praktikum 1/2 Inhaltliche Veraenderungen
+		* Praktikum 1/2/3 Inhaltliche Veraenderungen
 		* ENDE
 		\****************************************************************************/
 
@@ -75,29 +73,18 @@ public:
 	}
 
 	void setLensParameters(const royale::LensParameters &lensParameters) {
-		// Construct the camera matrix
-		// (fx   0    cx)
-		// (0    fy   cy)
-		// (0    0    1 )
 		cameraMatrix = (cv::Mat1d(3, 3) << lensParameters.focalLength.first, 0, lensParameters.principalPoint.first,
-			0, lensParameters.focalLength.second, lensParameters.principalPoint.second,
-			0, 0, 1);
+			0, lensParameters.focalLength.second, lensParameters.principalPoint.second, 0, 0, 1);
 
-		// Construct the distortion coefficients
-		// k1 k2 p1 p2 k3
-		distortionCoefficients = (cv::Mat1d(1, 5) << lensParameters.distortionRadial[0],
-			lensParameters.distortionRadial[1],
-			lensParameters.distortionTangential.first,
-			lensParameters.distortionTangential.second,
-			lensParameters.distortionRadial[2]);
+		distortionCoefficients = (cv::Mat1d(1, 5) << lensParameters.distortionRadial[0], lensParameters.distortionRadial[1],
+			lensParameters.distortionTangential.first, lensParameters.distortionTangential.second, lensParameters.distortionRadial[2]);
 	}
 
 
 	/****************************************************************************\
 	* ANFANG
-	* Praktikum 1/2 Inhaltliche Veraenderungen
+	* Praktikum 1/2/3 Inhaltliche Veraenderungen
 	\****************************************************************************/
-
 
 	// Praktikum 1
 	void show_gray_picture() {
@@ -111,12 +98,12 @@ public:
 		// Skalierung berechnen & Bild skalieren
 		double scale = 255 / (max - min);
 		cv::convertScaleAbs(grayImage, gray_CV_8UC1, scale);
-
 		grayImage_edit = gray_CV_8UC1;
 
 		// Anzeigen (kann weg)
-		cv::imshow("Gray (Edit)", grayImage_edit);
-		cv::waitKey(1);
+        if (debug) {
+            cv::imshow("Gray (Edit)", grayImage_edit);
+        }
 	}
 
 	void show_depth_picture() {
@@ -134,20 +121,17 @@ public:
 		// Einfaerbung mit COLORMAP_RAINBOW
 		cv::Mat color_map;
 		cv::applyColorMap(depth_CV_8UC1, color_map, cv::COLORMAP_RAINBOW);
-
 		zImage_edit = color_map;
 
 		// Anzeigen (kann weg)
-		cv::imshow("Depth (Edit)", zImage_edit);
-		cv::waitKey(1);
+        if (debug) {
+            cv::imshow("Depth (Edit)", zImage_edit);
+        }
 	}
 
 	void open_video_files(string filename, cv::Size bild_groesse, double fps) {
-		string file_g = filename + "_gray.avi";
-		string file_d = filename + "_depth.avi";
-
-		file_gray = file_g;
-		file_depth = file_d;
+		file_gray = filename + "_gray.avi";
+		file_depth = filename + "_depth.avi";
 
 		// VideoWriter fuer Graubild oeffnen
 		vw_gray.open(file_gray, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), fps, bild_groesse, false);
@@ -196,14 +180,11 @@ public:
 		else {
 			// Linienprofil-Bild (Breite * Hoehe => 256 * [Hoehe des Graubilds])
 			cv::Mat linienprofil(256, grayImage_edit.rows, CV_8UC3);
-			cout << "Groesse des Linien-Bilds: (" << linienprofil.rows << " | " << linienprofil.cols << ")" << endl;
-			cout << "Groesse des Grauwert-Bilds: (" << grayImage_edit.rows << " | " << grayImage_edit.cols << ")" << endl;
 
 			// Irgendein zufaelliger Wert, der zwischen 0-Breite liegt
 			uchar x_wert = grayImage_edit.rows / 2;
 
-			// "Anwendung" Mittelwert über 20 Frames
-			// klappt nicht ganz, irgendwas ist da kaputt!
+			// "Anwendung" Mittelwert über 20 Frames => klappt nicht ganz, irgendwas ist da kaputt!
 			if (glaettung_frame == 21) {
 				mit20_bild = cv::Mat(grayImage_edit.rows, grayImage_edit.cols, CV_8UC1);
 				for (int i = 0; i < mit_ueber_20_frames.size(); i++) {
@@ -217,41 +198,41 @@ public:
 				}
 				glaettung_frame++;
 			}
-			cv::imshow("Mit20", mit20_bild);
+            if (debug) {
+                cv::imshow("Mit20", mit20_bild);
+            }
 
 			// Anwendung Medianfilter (Groesse 3x3)
 			cv::Mat median_bild = grayImage_edit.clone();
 			cv::medianBlur(grayImage_edit, median_bild, 3);
 			med_bild = median_bild.clone();
-			cv::imshow("Med", med_bild);
+            if (debug) {
+                cv::imshow("Med", med_bild);
+            }
 
 			// Anwendung Mittelwertfilter
 			cv::Mat mittelwert_bild = grayImage_edit.clone();
 			cv::blur(grayImage_edit, mittelwert_bild, cv::Size(3, 3));
 			mit_bild = mittelwert_bild.clone();
-			cv::imshow("Mit", mit_bild);
+            if (debug) {
+                cv::imshow("Mit", mit_bild);
+            }
 
 			// Linienprofil fuer Mittelwert (20 Frames) zeichnen
 			cv::Scalar m20(255, 0, 0);
 			for (uchar i = 0; i < linienprofil.cols - 1; i++) {
-				//cout << "Startpunkt (" << (int)i << " | " << (int)mit20_bild.at<uchar>(x_wert, i) << ")" << endl;
-				//cout << "Endpunkt   (" << (int)(i + 1) << " | " << (int)mit20_bild.at<uchar>(x_wert, i + 1) << ")" << endl;
 				cv::line(linienprofil, cv::Point(i, mit20_bild.at<uchar>(x_wert, i)), cv::Point(i + 1, mit20_bild.at<uchar>(x_wert, i + 1)), m20);
 			}
 
 			// Linienprofil fuer Medianfilter zeichnen
 			cv::Scalar med(0, 255, 0);
 			for (uchar i = 0; i < linienprofil.cols-1; i++) {
-				//cout << "Startpunkt (" << (int)i << " | " << (int)median_bild.at<uchar>(x_wert, i) << ")" << endl;
-				//cout << "Endpunkt   (" << (int)(i+1) << " | " << (int)median_bild.at<uchar>(x_wert, i+1) << ")" << endl;
 				cv::line(linienprofil, cv::Point(i, median_bild.at<uchar>(x_wert, i)), cv::Point(i+1, median_bild.at<uchar>(x_wert, i+1)), med);
 			}
 
 			// Linienprofil fuer Mittelwertfilter zeichen
 			cv::Scalar mit(0, 0, 255);
 			for (uchar i = 0; i < linienprofil.cols - 1; i++) {
-				//cout << "Startpunkt (" << (int)i << " | " << (int)mittelwert_bild.at<uchar>(x_wert, i) << ")" << endl;
-				//cout << "Endpunkt   (" << (int)(i + 1) << " | " << (int)mittelwert_bild.at<uchar>(x_wert, i + 1) << ")" << endl;
 				cv::line(linienprofil, cv::Point(i, mittelwert_bild.at<uchar>(x_wert, i)), cv::Point(i + 1, mittelwert_bild.at<uchar>(x_wert, i + 1)), mit);
 			}
 
@@ -260,55 +241,78 @@ public:
 	}
 
 	void auswertung_geglaettete_grauwerte() {
-		// Weitermachen mit dem Median-gefilterten Bild
-
 		// SIEHE: http://answers.opencv.org/question/120698/drawning-labeling-components-in-a-image-opencv-c/
 		// Schwellwertsegmentierung (OTSU)
 		// ggf. vor OTSU noch ein Closing durchfuehren? -> Frau P.-F. meinte nicht noetig
 		cv::Mat grau_otsu = med_bild.clone();
 		cv::threshold(med_bild, grau_otsu, 0, 255, CV_THRESH_OTSU);
-		cv::imshow("OTSU", grau_otsu);
+        
+        if (debug) {
+            cv::imshow("OTSU", grau_otsu);
+        }
 
-		// Segmentierte Regionen labeln:
-		// -> Pixel zu Connected Components zusammenfassen
+		// Segmentierte Regionen labeln -> Pixel zu Connected Components zusammenfassen
 		cv::Mat label_image, stats, centroid;
 		int labels = cv::connectedComponentsWithStats(grau_otsu, label_image, stats, centroid, 8, CV_32S);
 		vector<int> tasten_labels;
 
 		for (int i = 1; i < labels; i++) {
-			cout << "Component " << i << std::endl;
-			// X-Koordinate?
-			cout << "CC_STAT_LEFT   = " << stats.at<int>(i, cv::CC_STAT_LEFT) << endl;
-			// Y-Koordinate?
-			cout << "CC_STAT_TOP    = " << stats.at<int>(i, cv::CC_STAT_TOP) << endl;
-			// Breite
-			cout << "CC_STAT_WIDTH  = " << stats.at<int>(i, cv::CC_STAT_WIDTH) << endl;
-			// Höhe
-			cout << "CC_STAT_HEIGHT = " << stats.at<int>(i, cv::CC_STAT_HEIGHT) << endl;
-			// Fläche
-			cout << "CC_STAT_AREA   = " << stats.at<int>(i, cv::CC_STAT_AREA) << endl;
-			// auswählen, ob es passt (bei mir 500 < AREA < 1500
-            // Frau P.-F. sagt das geht so und muss nicht umstaendlicher gemacht werden
+            if (debug) {
+                cout << "\nComponent " << i << std::endl;
+                cout << "CC_STAT_LEFT   = " << stats.at<int>(i, cv::CC_STAT_LEFT) << endl;      // X-Koordinate
+                cout << "CC_STAT_TOP    = " << stats.at<int>(i, cv::CC_STAT_TOP) << endl;       // Y-Koordinate
+                cout << "CC_STAT_WIDTH  = " << stats.at<int>(i, cv::CC_STAT_WIDTH) << endl;     // Breite
+                cout << "CC_STAT_HEIGHT = " << stats.at<int>(i, cv::CC_STAT_HEIGHT) << endl;    // Höhe
+                cout << "CC_STAT_AREA   = " << stats.at<int>(i, cv::CC_STAT_AREA) << endl;      // Fläche
+            }
+            
+            // Hier muss irgendwie aussortiert werden, welche Components passen und welche nicht :>
 			if (stats.at<int>(i, cv::CC_STAT_AREA) > 500 && stats.at<int>(i, cv::CC_STAT_AREA) < 1500) {
 				tasten_labels.push_back(i);
 			}
 		}
 		if (tasten_labels.size() != 8) {
-			cout << "Nicht 8 Tasten erkannt!" << endl;
-		} else {
-			cout << "8 Tasten erkannt!" << endl;
+			// Es wurden mehr oder weniger als 8 Tasten erkannt :(
 		}
 
-		// Gelabelte Connected Components sortieren
-
-		// -> je nach Ausrichtung nach X/Y-Koordinate sortieren
-
-		// Tasten je nach Wert in Schleife Farbe zuweisen und einfaerben
+        // Gelabelte Connected Components sortieren
+        // Das hier funktioniert (nur) bei "kb_portrait_gray.avi"
+        sort(tasten_labels.begin(), tasten_labels.end(), [stats](int a, int b) -> bool {
+            return (stats.at<int>(a, CC_STAT_TOP) > stats.at<int>(b, CC_STAT_TOP)) ? true : false;
+        });
+        
+        if (debug) {
+            cout << endl;
+            for (int i=0; i<tasten_labels.size(); i++) {
+                cout << "Sortiertes Top (" << i+1 << "):" << stats.at<int>(tasten_labels[i], CC_STAT_TOP) << endl;
+            }
+            cout << endl;
+        }
+        
+        // Tasten je nach Wert in Schleife Farbe zuweisen und einfaerben
+        Mat colored_frame = grayImage.clone();
+        
+        for (int i=0; i<tasten_labels.size(); i++) {
+            int x = stats.at<int>(tasten_labels[i], CC_STAT_LEFT);
+            int y = stats.at<int>(tasten_labels[i], CC_STAT_TOP);
+            int x2 = x + stats.at<int>(tasten_labels[i], CC_STAT_WIDTH);
+            int y2 = y + stats.at<int>(tasten_labels[i], CC_STAT_HEIGHT);
+            int color = (256/(tasten_labels.size() + 2))*(i+1);
+            
+            rectangle(colored_frame, Point(x, y), Point(x2, y2), Scalar(color, color, color), FILLED);
+            
+            string letters[] = {
+                "A", "B", "C", "D", "E", "F", "G", "H"
+            };
+            putText(colored_frame, letters[i], Point(20, (8-i)*20), FONT_HERSHEY_COMPLEX_SMALL, 1.0, Scalar(128, 128, 128));
+            
+            imshow("Eingezeichnete CCs", colored_frame);
+            waitKey(100);
+        }
 	}
 
-
 	/****************************************************************************\
-	* Praktikum 1/2 Inhaltliche Veraenderungen
+	* Praktikum 1/2/3 Inhaltliche Veraenderungen
 	* ENDE
 	\****************************************************************************/
 
@@ -321,9 +325,8 @@ private:
 
 	/****************************************************************************\
 	* ANFANG
-	* Praktikum 1/2 Inhaltliche Veraenderungen
+	* Praktikum 1/2/3 Inhaltliche Veraenderungen
 	\****************************************************************************/
-
 
 	// Praktikum 1
 	cv::Mat zImage_edit, grayImage_edit;
@@ -337,9 +340,8 @@ private:
 	vector<int> mit_ueber_20_frames;
 	int glaettung_frame;
 
-
 	/****************************************************************************\
-	* Praktikum 1/2 Inhaltliche Veraenderungen
+	* Praktikum 1/2/3 Inhaltliche Veraenderungen
 	* ENDE
 	\****************************************************************************/
 
@@ -353,7 +355,7 @@ int main(int argc, char *argv[]) {
 
 	/****************************************************************************\
 	* ANFANG
-	* Praktikum 1/2 Inhaltliche Veraenderungen
+	* Praktikum 1/2/3 Inhaltliche Veraenderungen
 	\****************************************************************************/
 
 	int param = 0;
@@ -384,16 +386,14 @@ int main(int argc, char *argv[]) {
 				cv::waitKey(20);
 			}
 			return 0;
-		}
-		else if (param == 2) {
+		} else if (param == 2) {
 			cout << "Bitte Datei-Praefix des aufnehmenden Videos eingeben" << endl;
 			cin >> filename;
 		}
 	}
 
-
 	/****************************************************************************\
-	* Praktikum 1/2 Inhaltliche Veraenderungen
+	* Praktikum 1/2/3 Inhaltliche Veraenderungen
 	* ENDE
 	\****************************************************************************/
 
@@ -471,7 +471,7 @@ int main(int argc, char *argv[]) {
 
 	/****************************************************************************\
 	* ANFANG
-	* Praktikum 1/2 Inhaltliche Veraenderungen
+	* Praktikum 1/2/3 Inhaltliche Veraenderungen
 	\****************************************************************************/
 
 	listener.setMode(param);
@@ -503,9 +503,7 @@ int main(int argc, char *argv[]) {
 	cv::namedWindow("Depth (Edit)");
 
 	// "Endlosschleife" fuer Anzeige der Tiefen- / Grauwertbilder usw. sowie Aufnahme der Bilder
-	for (;;) {
-		if (cv::waitKey(1) == 13) { break; }
-	}
+	for (;;) { if (cv::waitKey(1) == 13) { break; } }
 
 	if (param == 2) {
 		listener.close_video_files();
@@ -515,9 +513,8 @@ int main(int argc, char *argv[]) {
 	cv::destroyAllWindows();
 	cout << "Alle bestehenden Fenster schliessen" << endl;
 
-
 	/****************************************************************************\
-	* Praktikum 1/2 Inhaltliche Veraenderungen
+	* Praktikum 1/2/3 Inhaltliche Veraenderungen
 	* ENDE
 	\****************************************************************************/
 
