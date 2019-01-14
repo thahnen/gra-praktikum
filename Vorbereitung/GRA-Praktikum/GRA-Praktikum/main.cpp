@@ -20,18 +20,18 @@ using namespace cv;
 
 class MyListener {
 public:
-    /****************************************************************************\
+    /********************************************************************************************************************************************************\
      * KONSTRUKTOR & DESTRUKTOR
-    \****************************************************************************/
+    \********************************************************************************************************************************************************/
     MyListener(bool type) {
         this->type = type;
     }
     ~MyListener() {}
     
     
-    /****************************************************************************\
+    /********************************************************************************************************************************************************\
      * FUNKTION, DIE JEDEN FRAME AUSGEFÜHRT WIRD
-    \****************************************************************************/
+    \********************************************************************************************************************************************************/
     void onNewData(Mat frame) {
         this->frame = frame;
         
@@ -48,11 +48,15 @@ public:
             // Alles was hier laut Praktikum 1 usw. noch passiert -.-
             
             auswertung_geglaettete_grauwerte();
-            
+            if (debug) {
+                imshow("OTSU", grau_otsu);
+            }
             imshow("Tastatur", tastatur);
             
             return;
         }
+        
+        auswertung_tiefenbild();
     }
     
     
@@ -61,11 +65,8 @@ public:
         // Schwellwertsegmentierung (OTSU)
         // ggf. vor OTSU noch ein Closing durchfuehren? -> Frau P.-F. meinte nicht noetig
         grau_otsu = grayscale.clone();
-        closing(grau_otsu, Mat());
+        //closing(grau_otsu, Mat());
         threshold(grayscale, grau_otsu, 0, 255, THRESH_BINARY | THRESH_OTSU); // THRESH_BINARY + THRESH_OTSU nicht mehr CV_THRESH_BINARY + CV_THRESH_OTSU!
-        if (debug) {
-            imshow("OTSU", grau_otsu);
-        }
         
         // Segmentierte Regionen labeln -> Pixel zu Connected Components zusammenfassen
         Mat label_image, stats, centroid;
@@ -82,38 +83,29 @@ public:
             
             // Hier muss irgendwie aussortiert werden, welche Components passen und welche nicht :>
             // 1. Flaeche darf nicht unter oder ueber Schwellwert liegen (hier: 1000 < Flaeche < 2000)
-            // 2. Breite im gleichen Rahmen wie die anderen (+/-5) UND Hoehe im gleichen Rahmen wie die anderen (+/-5)
+            // 2. Breite im gleichen Rahmen wie die anderen (+/-5) UND Hoehe im gleichen Rahmen wie die anderen (+/-10)
+            // WERTE IM PRAKTIKUM AENDERN; DIE HIER SIND FUER VIDEO!
             int untere = 1000;
             int obere = 2000;
             if ((stats.at<int>(i, CC_STAT_AREA) > untere) and (stats.at<int>(i, CC_STAT_AREA) < obere)) {
                 for (int j=1; j<labels; j++) {
-                    if (i==j) {
-                        continue;
-                    }
+                    if (i==j) { continue; }
                     
                     int w_untere = stats.at<int>(j, CC_STAT_WIDTH) - 10;
                     int w_obere = stats.at<int>(j, CC_STAT_WIDTH) + 10;
                     int h_untere = stats.at<int>(j, CC_STAT_HEIGHT) - 10;
                     int h_obere = stats.at<int>(j, CC_STAT_HEIGHT) + 10;
                     if (((stats.at<int>(i, CC_STAT_WIDTH) > w_untere) and (stats.at<int>(i, CC_STAT_WIDTH) < w_obere))
-                         and ((stats.at<int>(i, CC_STAT_HEIGHT) > h_untere) and (stats.at<int>(i, CC_STAT_HEIGHT) < h_obere))) {
+                        and ((stats.at<int>(i, CC_STAT_HEIGHT) > h_untere) and (stats.at<int>(i, CC_STAT_HEIGHT) < h_obere))) {
                         tasten_labels.push_back(i);
                         break;
                     }
                 }
             }
-            
-            /*
-            // Das hier funktioniert (NUR) bei "kb_portrait_gray.avi"
-            if ((stats.at<int>(i, CC_STAT_WIDTH) > 70 && stats.at<int>(i, CC_STAT_WIDTH) < 84)
-                && (stats.at<int>(i, CC_STAT_HEIGHT) > 10 && stats.at<int>(i, CC_STAT_HEIGHT) < 24)) {
-                tasten_labels.push_back(i);
-            }
-             */
         }
         
         if (tasten_labels.size() != 8) {
-            // Es wurden mehr oder weniger als 8 Tasten erkannt :(
+            // bsp. wenn man das Tastaturen-Blatt dreht oder aus dem Kamera-Feld bewegt
             cerr << "Es wurden weniger oder mehr als 8 Tasten erkannt!" << endl;
         }
         
@@ -138,11 +130,9 @@ public:
         }
         
         if (debug) {
-            cout << endl;
             for (int i=0; i<tasten_labels.size(); i++) {
                 cout << "Sortiertes Top (" << i+1 << "):" << stats.at<int>(tasten_labels[i], CC_STAT_TOP) << endl;
             }
-            cout << endl;
         }
         
         // Tasten je nach Wert in Schleife Farbe zuweisen und einfaerben
@@ -174,11 +164,106 @@ public:
         }
     }
     
+    void auswertung_tiefenbild() {
+        // Histogramm des Tiefenbilds erstellen& anzeigen (Tiefenbild muss Schwarz-Weiss sein!)
+        tiefenbild = frame.clone();
+        Mat tiefen_hist = histogramm(tiefenbild);
+        imshow("Histogramm (Tiefenbild)", tiefen_hist);
+        
+        // Gauss-Filter auf Histogramm anwenden (Groesse egal? hier mal 3x3 genommen)
+        GaussianBlur(hist_values, hist_values, Size(3, 3), 0);
+        
+        // Schwellwert suchen
+        double min, max;
+        minMaxLoc(hist_values, &min, &max);
+        
+        int value = (int)max;
+        for (int i=(int)max; i>-1; i--) {
+            if (i > value) {
+                break;
+            }
+        }
+        
+        // Binaerbild mit Schwellwert erzeugen!
+        Mat binaer_tiefen = tiefenbild.clone();
+        threshold(binaer_tiefen, binaer_tiefen, value, 255, THRESH_BINARY | THRESH_OTSU);
+        
+        // Binaerbild mit dem vorherigen vergleichen
+        // CCs herausfinden, alle vergleichen, ob sie vorher schon dabei waren
+        Mat label_image, stats, centroid;
+        int labels = connectedComponentsWithStats(grau_otsu, label_image, stats, centroid, 8, CV_32S);
+        vector<vector<int>> cc_tiefen_neue;
+        
+        for (int i=0; i<labels; i++) {
+            cc_tiefen_neue.push_back({
+                stats.at<int>(i, CC_STAT_LEFT),
+                stats.at<int>(i, CC_STAT_TOP),
+                stats.at<int>(i, CC_STAT_WIDTH),
+                stats.at<int>(i, CC_STAT_HEIGHT)
+            });
+        }
+        
+        // cc_tiefen ist beim ersten Mal noch nicht gesetzt, das muss vorher abgefangen werden!
+        cc_tiefen_blau = cc_tiefen;                     // alte kopieren, damit dann dort alle gleichen rausgeloescht werden koennen (uebrig bleiben die weggefallenen!)
+        cc_tiefen_rot = cc_tiefen_neue;                 // neue kopieren, damit dann dort alle gleichen rausgeloescht werden koennen (uebrig bleiben die hinzugekommenen!)
+        for (vector<int> x : cc_tiefen_rot) {
+            // Ueberpruefen, ob die schon im alten waren
+            for (vector<int> y : cc_tiefen_blau) {
+                // Vergleich einfach, ob neues CC gleich mit irgendeinem alten ist
+                if ((x[0] == y[0]) and (x[1] == y[1])) {
+                    // Gefunden, also muessen beide Objekte geoescht werden und aeussere Schleife weitergemacht werden (aka naechstes Element)
+                    cc_tiefen_blau.erase(find(cc_tiefen_blau.begin(), cc_tiefen_blau.end(), y));
+                    cc_tiefen_rot.erase(find(cc_tiefen_rot.begin(), cc_tiefen_rot.end(), x));
+                    break;
+                }
+            }
+        } // -> hier sollten in "cc_tiefen_blau" nur alte und in "cc_tiefen_rot" nur neue CCs
+        
+        // Auf veränderten ein Opening durchfuehren (wie auch immer das nur auf den Bereichen gehen soll)
+        
+        // Bereiche markieren ([BLAU -> neu,] ROT -> alt)
+        Mat tiefenbild_markiert = tiefenbild.clone();
+        
+        for (vector<int> rot : cc_tiefen_rot) {
+            int x = rot[0];
+            int y = rot[1];
+            
+            rectangle(tiefenbild_markiert, Point(x, y), Point(x + rot[2], y + rot[3]), Scalar(255, 255, 255));
+        }
+        imshow("Rote Bereiche in Tiefenbild", tiefenbild_markiert); // nur zu DEBUG-Zwecken?
+        
+        // Haeufigkeit berechnen -> alle Pixel in CCs nach alllen Tasten suchen
+        vector<int> haeufigkeiten;
+        for (vector<int> rot : cc_tiefen_rot) {
+            for (vector<int> taste : cc) {
+                // Gucken, ob jeder Pixel in Rot (Breite x Hoehe) im Bereich der Tasten liegt!
+                int anzahl = 0;
+                for (int i=rot[0]; i<rot[0]+rot[2]; i++) {                          // CC.X <= i < CC.X + CC.Breite &
+                    for (int j=rot[1]; j<rot[1]+rot[3]; j++) {                      // CC.Y <= j < CC.Y + CC.Hoehe ->
+                        if (((i >= taste[0]) and (i < taste[0]+taste[2]))           //      Taste.X <= i < Taste.X + Taste.Breite &
+                            and ((j >= taste[1]) and ( j < taste[1]+taste[3]))) {   //      Taste.Y <= j < Taste.Y + Taste.Hoehe ->
+                            anzahl++;                                               //          Drin: Anzahl + 1
+                        }
+                    }
+                }
+                haeufigkeiten.push_back(anzahl);    // das hier funktioniert nur, wenn es nur eine einzige Rote Flaeche gibt!
+                goto annahme_nur_eine_rote_flaeche_alle_anderen_ignoriert;
+            }
+        }
+        
+    annahme_nur_eine_rote_flaeche_alle_anderen_ignoriert:
+        index_max_value = distance(haeufigkeiten.begin(), max_element(haeufigkeiten.begin(), haeufigkeiten.end())); // -> Die Taste cc[i] ist die gedrueckte!
+        
+        
+        // Tasten in Bild mit Roten Segmenten zeichnen (Taste hervorheben)
+        
+        // Tasten in Tiefenbild einzeichnen (Taste hervorheben), Buchstaben ausgeben
+    }
     
-    /****************************************************************************\
-    * HILFSFUNKTION
-    \****************************************************************************/
-    Mat histogramm(Mat &bild) {
+    /********************************************************************************************************************************************************\
+     * HILFSFUNKTIONEN
+    \********************************************************************************************************************************************************/
+    Mat histogramm(Mat& bild) {
         int hist_w = 256;
         int hist_h = 450;
         Mat hist_bild(450, 256, CV_8UC3, Scalar(0, 0, 0));
@@ -187,6 +272,7 @@ public:
         const float* hist_range = { range };
         calcHist(&bild, 1, 0, Mat(), hist, 1, &hist_w, &hist_range, true, false);
         normalize(hist, hist, 0, hist_bild.rows, NORM_MINMAX, -1, Mat());
+        hist_values = hist.clone();
         for (int i=0; i<hist_w; i++) {
             line(hist_bild, Point(i, hist_h-cvRound(hist.at<float>(i))), Point(i, hist_h), Scalar(255, 255, 255));
         }
@@ -221,24 +307,31 @@ public:
         r += ((1+(type >> CV_CN_SHIFT))+'0');
         return r;
     }
+    
 private:
-    /****************************************************************************\
+    /********************************************************************************************************************************************************\
      * ALLE KLASSENVARIABLEN
-    \****************************************************************************/
-    bool type;              // Der jeweilige Bild-Typ (nur HIER zur Unterscheidung von Tiefen- bzw. Grauwertbild)
-    Mat frame;              // Das jeweilige Frame (nur HIER entweder ein Tiefen- bzw. Grauwertbild)
-    Mat grayscale;          // Das Grauwertbild (musste im Praktikum nicht konvertiert werden!)
-    Mat grau_otsu;          // Das mit OTSU segmentierte Grauwert-Bild
-    bool hochkant;           // Gibt an, ob das Bild hochkant ist oder nicht!
-    Mat tastatur;           // Das Bild der eingefärbten Tastatur.
-    vector<vector<int>> cc; // Vektoren der einzelnen CCs mit X/Y-Koordinaten, Hoehe/Breite
+    \********************************************************************************************************************************************************/
+    bool type;                                      // Der jeweilige Bild-Typ (nur HIER zur Unterscheidung von Tiefen- bzw. Grauwertbild)
+    Mat frame;                                      // Das jeweilige Frame (nur HIER entweder ein Tiefen- bzw. Grauwertbild)
+    Mat grayscale;                                  // Das Grauwertbild (musste im Praktikum nicht konvertiert werden!)
+    Mat grau_otsu;                                  // Das mit OTSU segmentierte Grauwert-Bild
+    bool hochkant;                                  // Gibt an, ob das Bild hochkant ist oder nicht!
+    Mat tastatur;                                   // Das Bild der eingefärbten Tastatur.
+    vector<vector<int>> cc;                         // Vektoren der einzelnen CCs mit X/Y-Koordinaten, Hoehe/Breite
+    Mat tiefenbild;                                 // Das Tiefenbild, abgespeichert um es mehrfach zu verwenden
+    Mat hist_values;                                // Fuer alle 0-255 Werte des Histogramms, die Anzahl, wie oft jeder Wert vorkommt (gebraucht fuer Min/Max)
+    vector<vector<int>> cc_tiefen;                  // Vektoren der einzelnen Tiefen-CCs mit X/Y-Koordinaten, Hoehe/Breite fuer Vergleich naechster Frame
+    vector<vector<int>> cc_tiefen_blau;             // Alle alten CCs, die nicht auch bei den neuen CCs dabei sind!
+    vector<vector<int>> cc_tiefen_rot;              // Alle neuen CCs, die nicht auch bei den alten CCs dabei sind!
+    int index_max_value;                            // Gibt Index der Taste an, die gedrueckt wurde (muss aus allen roten Flaechen ausgewaehlt werden?)
 };
 
 
 
-/****************************************************************************\
- * MAIN-Funktion
-\****************************************************************************/
+/********************************************************************************************************************************************************\
+ * MAIN-FUNKTION
+\********************************************************************************************************************************************************/
 int main(int argc, const char * argv[]) {
     string files[] = {
         "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_robust_gray.avi",      // hier wird nur rumgewackelt und gedreht -> kann weg
