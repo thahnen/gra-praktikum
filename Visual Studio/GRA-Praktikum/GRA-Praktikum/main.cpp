@@ -318,7 +318,8 @@ public:
 
 
 private:
-	cv::Mat zImage, grayImage;
+	cv::Mat zImage                                  // Das Tiefenbild, vor Kontrastspreizung, Skalierung und Einfaerbung
+    cv::Mat grayImage;                              // Das Grauwertbild, vor Kontrastspreizung und Skalierung
 	cv::Mat cameraMatrix, distortionCoefficients;
 	mutex flagMutex;
 
@@ -329,16 +330,19 @@ private:
 	\****************************************************************************/
 
 	// Praktikum 1
-	cv::Mat zImage_edit, grayImage_edit;
-	cv::VideoWriter vw_gray, vw_depth;
-	string file_gray;
-	string file_depth;
-	int mode;
+	cv::Mat zImage_edit                             // Das Tiefenbild, nach Kontrastspreizung, Skalierung und Einfaerbung
+    cv::Mat grayImage_edit;                         // Das Grauwertbild, nach Kontrastspreizung und Skalierung
+	cv::VideoWriter vw_gray, vw_depth;              // Die VideoWriter zum abspeichern der Videos!
+    string file_depth;                              // Der Dateiname fuer das Tiefenbild
+	string file_gray;                               // Der Dateiname fuer das Grauwertbild
+	int mode;                                       // Der Modus, in dem das Programm ablaeuft (Wiedergabe, Aufnahme, Auswertung)
 
 	// Praktikum 2
-	cv::Mat mit20_bild, med_bild, mit_bild;
-	vector<int> mit_ueber_20_frames;
-	int glaettung_frame;
+	cv::Mat mit20_bild                              // Das Grauwertbild, das ueber 20 Frames gemittelt ist (wird nicht weiter verwendet)
+    vector<int> mit_ueber_20_frames;                // Der Vektor fuer die 20 Frames gemittelt (wird nicht weiter verwendet)
+    int glaettung_frame;                            // Gibt an, wie viele Frames durchlaufen wurden, um 20 Frames zu mitteln (wird nicht weiter verwendet)
+    cv::Mat med_bild                                // Das Grauwertbild, das ueber den Median ermittelt wurde => WIRD WEITER VERWENDET!
+    cv::Mat mit_bild;                               // Das Grauwertbild, das ueber den Mittelwert ermittelt wurde (wird nicht weiter verwendet)
 
 	/****************************************************************************\
 	* Praktikum 1/2/3 Inhaltliche Veraenderungen

@@ -36,17 +36,23 @@ public:
         this->frame = frame;
         
         // Testen, ob es Grauwert- oder Tiefenbild war!
-        
-        cvtColor(this->frame, grayscale, COLOR_RGB2GRAY);
-        
-        if (debug) {
-            imshow("Video", this->frame);
-            imshow("Histogramm", histogramm(this->frame));
+        if (type) {
+            // Es war ein Grauwert-Bild, muss aber wegen Video zurückkonvertiert werden!
+            cvtColor(this->frame, grayscale, COLOR_RGB2GRAY);
+            
+            if (debug) {
+                imshow("Video (Grauwert)", grayscale);
+                imshow("Histogramm (Grauwert)", histogramm(grayscale));
+            }
+            
+            // Alles was hier laut Praktikum 1 usw. noch passiert -.-
+            
+            auswertung_geglaettete_grauwerte();
+            
+            imshow("Tastatur", tastatur);
+            
+            return;
         }
-        
-        // Alles was hier laut Praktikum 1 usw. noch passiert -.-
-        
-        auswertung_geglaettete_grauwerte();
     }
     
     
@@ -54,9 +60,12 @@ public:
         // SIEHE: http://answers.opencv.org/question/120698/drawning-labeling-components-in-a-image-opencv-c/
         // Schwellwertsegmentierung (OTSU)
         // ggf. vor OTSU noch ein Closing durchfuehren? -> Frau P.-F. meinte nicht noetig
-        grau_otsu = frame.clone();
-        threshold(grayscale, grau_otsu, 0, 255, THRESH_OTSU); // THRESH_OTSU nicht mehr CV_THRESH_OTSU!
-        //imshow("OTSU", grau_otsu);
+        grau_otsu = grayscale.clone();
+        closing(grau_otsu, Mat());
+        threshold(grayscale, grau_otsu, 0, 255, THRESH_BINARY | THRESH_OTSU); // THRESH_BINARY + THRESH_OTSU nicht mehr CV_THRESH_BINARY + CV_THRESH_OTSU!
+        if (debug) {
+            imshow("OTSU", grau_otsu);
+        }
         
         // Segmentierte Regionen labeln -> Pixel zu Connected Components zusammenfassen
         Mat label_image, stats, centroid;
@@ -65,31 +74,68 @@ public:
         
         for (int i=1; i<labels; i++) {
             if (debug) {
+                // ALLE gefundenen CCs und ihre Eigenschaften ausgeben!
                 cout << "\nComponent " << i << std::endl;
-                cout << "CC_STAT_LEFT   = " << stats.at<int>(i, CC_STAT_LEFT) << endl;      // X-Koordinate
-                cout << "CC_STAT_TOP    = " << stats.at<int>(i, CC_STAT_TOP) << endl;       // Y-Koordinate
-                cout << "CC_STAT_WIDTH  = " << stats.at<int>(i, CC_STAT_WIDTH) << endl;     // Breite
-                cout << "CC_STAT_HEIGHT = " << stats.at<int>(i, CC_STAT_HEIGHT) << endl;    // Höhe
-                cout << "CC_STAT_AREA   = " << stats.at<int>(i, CC_STAT_AREA) << endl;      // Fläche
+                cout << "(X|Y)          = (" << stats.at<int>(i, CC_STAT_LEFT) << "|" << stats.at<int>(i, CC_STAT_TOP) << ")" << endl;
+                cout << "Breite x Hoehe = " << stats.at<int>(i, CC_STAT_WIDTH) << "x" << stats.at<int>(i, CC_STAT_HEIGHT) << " = " << stats.at<int>(i, CC_STAT_AREA) << endl;
             }
             
             // Hier muss irgendwie aussortiert werden, welche Components passen und welche nicht :>
-            // Das hier funktioniert (nur) bei "kb_portrait_gray.avi"
+            // 1. Flaeche darf nicht unter oder ueber Schwellwert liegen (hier: 1000 < Flaeche < 2000)
+            // 2. Breite im gleichen Rahmen wie die anderen (+/-5) UND Hoehe im gleichen Rahmen wie die anderen (+/-5)
+            int untere = 1000;
+            int obere = 2000;
+            if ((stats.at<int>(i, CC_STAT_AREA) > untere) and (stats.at<int>(i, CC_STAT_AREA) < obere)) {
+                for (int j=1; j<labels; j++) {
+                    if (i==j) {
+                        continue;
+                    }
+                    
+                    int w_untere = stats.at<int>(j, CC_STAT_WIDTH) - 10;
+                    int w_obere = stats.at<int>(j, CC_STAT_WIDTH) + 10;
+                    int h_untere = stats.at<int>(j, CC_STAT_HEIGHT) - 10;
+                    int h_obere = stats.at<int>(j, CC_STAT_HEIGHT) + 10;
+                    if (((stats.at<int>(i, CC_STAT_WIDTH) > w_untere) and (stats.at<int>(i, CC_STAT_WIDTH) < w_obere))
+                         and ((stats.at<int>(i, CC_STAT_HEIGHT) > h_untere) and (stats.at<int>(i, CC_STAT_HEIGHT) < h_obere))) {
+                        tasten_labels.push_back(i);
+                        break;
+                    }
+                }
+            }
+            
+            /*
+            // Das hier funktioniert (NUR) bei "kb_portrait_gray.avi"
             if ((stats.at<int>(i, CC_STAT_WIDTH) > 70 && stats.at<int>(i, CC_STAT_WIDTH) < 84)
                 && (stats.at<int>(i, CC_STAT_HEIGHT) > 10 && stats.at<int>(i, CC_STAT_HEIGHT) < 24)) {
                 tasten_labels.push_back(i);
             }
+             */
         }
         
         if (tasten_labels.size() != 8) {
             // Es wurden mehr oder weniger als 8 Tasten erkannt :(
+            cerr << "Es wurden weniger oder mehr als 8 Tasten erkannt!" << endl;
         }
         
-        // Gelabelte Connected Components sortieren
-        // Das hier funktioniert (nur) bei "kb_portrait_gray.avi"
-        sort(tasten_labels.begin(), tasten_labels.end(), [stats](int a, int b) -> bool {
-            return (stats.at<int>(a, CC_STAT_TOP) > stats.at<int>(b, CC_STAT_TOP)) ? true : false;
-        });
+        // Hier muss irgendwie überprüft werden, ob die Tastatur hochkant ist oder nicht!
+        hochkant = true;
+        int y_untere = stats.at<int>(tasten_labels[0], CC_STAT_TOP) - 10;
+        int y_obere = stats.at<int>(tasten_labels[0], CC_STAT_TOP) + 10;
+        if ((stats.at<int>(tasten_labels[1], CC_STAT_TOP) > y_untere) and (stats.at<int>(tasten_labels[1], CC_STAT_TOP) < y_obere)) {
+            // nicht hochkant, da alle Y-Koordinaten ungefähr gleich!
+            cout << "Nicht hochkant!" << endl;
+            hochkant = false;
+            // Gelabelte Connected Components sortieren (Nach X-Koordinate)
+            sort(tasten_labels.begin(), tasten_labels.end(), [stats](int a, int b) -> bool {
+                return (stats.at<int>(a, CC_STAT_LEFT) > stats.at<int>(b, CC_STAT_LEFT)) ? true : false;
+            });
+        } else {
+            cout << "Hochkant!" << endl;
+            // Gelabelte Connected Components sortieren (Nach Y-Koordinate)
+            sort(tasten_labels.begin(), tasten_labels.end(), [stats](int a, int b) -> bool {
+                return (stats.at<int>(a, CC_STAT_TOP) > stats.at<int>(b, CC_STAT_TOP)) ? true : false;
+            });
+        }
         
         if (debug) {
             cout << endl;
@@ -100,24 +146,31 @@ public:
         }
         
         // Tasten je nach Wert in Schleife Farbe zuweisen und einfaerben
-        Mat colored_frame = frame.clone();
+        tastatur = frame.clone();
         
         for (int i=0; i<tasten_labels.size(); i++) {
-            int x = stats.at<int>(tasten_labels[i], CC_STAT_LEFT);
-            int y = stats.at<int>(tasten_labels[i], CC_STAT_TOP);
-            int x2 = x + stats.at<int>(tasten_labels[i], CC_STAT_WIDTH);
-            int y2 = y + stats.at<int>(tasten_labels[i], CC_STAT_HEIGHT);
+            cc.push_back({
+                stats.at<int>(tasten_labels[i], CC_STAT_LEFT),
+                stats.at<int>(tasten_labels[i], CC_STAT_TOP),
+                stats.at<int>(tasten_labels[i], CC_STAT_WIDTH),
+                stats.at<int>(tasten_labels[i], CC_STAT_HEIGHT)
+            });
+            
+            int x = cc[i][0];
+            int y = cc[i][1];
             int color = (256/(tasten_labels.size() + 2))*(i+1);
             
-            rectangle(colored_frame, Point(x, y), Point(x2, y2), Scalar(color, color, color), FILLED);
+            rectangle(tastatur, Point(x, y), Point(x + cc[i][2], y + cc[i][3]), Scalar(color, color, color), FILLED);
             
+            // Der Rest hier hinter passiert eigentlich auch nur wegen Praktikum 2 Aufgabe: Nacheinander setzen (und nur wenns hochkannt ist!)
+            Mat tastatur_letters = tastatur.clone();
             string letters[] = {
                 "A", "B", "C", "D", "E", "F", "G", "H"
             };
-            putText(colored_frame, letters[i], Point(20, (8-i)*20), FONT_HERSHEY_COMPLEX_SMALL, 1.0, Scalar(128, 128, 128));
+            putText(tastatur_letters, letters[i], Point(20, (8-i)*20), FONT_HERSHEY_COMPLEX_SMALL, 1.0, Scalar(128, 128, 128));
             
-            imshow("Eingezeichnete CCs", colored_frame);
-            waitKey(100);
+            imshow("Tasten einzeichnen...", tastatur_letters);
+            waitKey(150);
         }
     }
     
@@ -140,6 +193,17 @@ public:
         return hist_bild;
     }
     
+    void opening(Mat src, Mat element) {
+        // open(src, element) = dilate(erode(src, element))
+        erode(src, src, element);
+        dilate(src, src, element);
+    }
+    
+    void closing(Mat src, Mat element) {
+        // close(src, element) = erode(dilate(src, element))
+        dilate(src, src, element);
+        erode(src, src, element);
+    }
     
     string type2str(int type) {
         string r;
@@ -161,9 +225,13 @@ private:
     /****************************************************************************\
      * ALLE KLASSENVARIABLEN
     \****************************************************************************/
-    bool type;
-    Mat frame, grayscale;
-    Mat grau_otsu;
+    bool type;              // Der jeweilige Bild-Typ (nur HIER zur Unterscheidung von Tiefen- bzw. Grauwertbild)
+    Mat frame;              // Das jeweilige Frame (nur HIER entweder ein Tiefen- bzw. Grauwertbild)
+    Mat grayscale;          // Das Grauwertbild (musste im Praktikum nicht konvertiert werden!)
+    Mat grau_otsu;          // Das mit OTSU segmentierte Grauwert-Bild
+    bool hochkant;           // Gibt an, ob das Bild hochkant ist oder nicht!
+    Mat tastatur;           // Das Bild der eingefärbten Tastatur.
+    vector<vector<int>> cc; // Vektoren der einzelnen CCs mit X/Y-Koordinaten, Hoehe/Breite
 };
 
 
@@ -173,13 +241,13 @@ private:
 \****************************************************************************/
 int main(int argc, const char * argv[]) {
     string files[] = {
-        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_robust_gray.avi",
-        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_portrait_gray.avi",
-        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_portrait_depth.avi"
+        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_robust_gray.avi",      // hier wird nur rumgewackelt und gedreht -> kann weg
+        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_portrait_gray.avi",    // das Video is hochkant
+        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_portrait_depth.avi"    // das Video zeigt nicht wirklich irgendwas -> kann weg
     };
     
     // Parameter true -> Grauwert!
-    MyListener listener(false);
+    MyListener listener(true);
     
     // VideoCapture oeffnen
     VideoCapture cap(files[1]);

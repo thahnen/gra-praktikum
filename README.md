@@ -4,13 +4,19 @@
 
 Das Praktikumsprojekt bestehend aus einer großen Aufgabe für 3 Praktikumstermine unterteilt jeweils in Unteraufgaben die an dem entsprechenden Termin erledigt werden müssen.
 
+---
+
 ## ~~Team~~-Member:
 1. Tobias Hahnen (1218710)
 
+---
+
 ## Technik
 1. C++
-* OpenCV-Bibliothek
+* OpenCV-Bibliothek (Version 3&4 ?)
 * Royale-Bibliothek
+
+---
 
 ## Informationen
 ### Prakikum 1:
@@ -38,9 +44,23 @@ Das Praktikumsprojekt bestehend aus einer großen Aufgabe für 3 Praktikumstermi
 * In Schleife nacheinander einfärben
 
 ### Praktikum 3:
-... kommt noch ...
+1. Aufgabe:
+* Zuordnung Buchstaben zu Farben
+2. Aufgabe:
+* Histogramm des Tiefenbilds ermitteln
+* Histogramm mit Gauss-Filter glaetten & erstes lokales Minimum links von Maximalwert suchen
+3. Aufgabe:
+* Diesen Schwellwert für Binärbild nutzen, ggf. erniedrigen
+* Binärbild mit vorherigem Vergleichen, Bereiche vergleichen, die nicht in beiden identisch sind
+* Auf ungleichen Bereichen Opening durchführen!
+4. Aufgabe:
+* Neue Bereiche (Hand heben) BLAU markieren, weggefallene ROT (Hand absenken) => Tastatur nur Key-Down!
+* Häufigkeit der überdeckten Tasten ermitteln, Element mit Häufigsten hervorheben!
+* Buchstabe aus Buchstabenvektor ausgeben!
 
-### GitHub-Aufbau:
+---
+
+## GitHub-Aufbau:
 1. ZIP-Datei "royale.zip":
 * SDK Bibliothek für die verwendete ["PMD Technologies CamBoard pico flexx" - Kamera](https://www.automation24.de/entwicklungs-kit-pmd-vision-r-camboard-pico-flexx-700-000-094)
 2. Ordner "Visual Studio":
