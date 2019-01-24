@@ -112,6 +112,7 @@ public:
 		grayImage_edit = gray_CV_8UC1;
 	}
 
+    // Praktikum 1
 	void edit_depth_picture() {
 		// Kontrastspreizung
 		Mat mask;
@@ -123,6 +124,9 @@ public:
 		// Skalierung berechnen & Bild skalieren
 		double scale = 255 / (max - min);
 		convertScaleAbs(zImage, depth_CV_8UC1, scale);
+        
+        // Hier zwischen noch depth_CV_8UC1 abspeichern, damit wird dann später weitergearbeitet
+        depthImage_edit_gray = depth_CV_8UC1
 
 		// Einfaerbung mit COLORMAP_RAINBOW
 		Mat color_map;
@@ -130,6 +134,7 @@ public:
 		depthImage_edit = color_map;
 	}
 
+    // Praktikum 1
 	void open_video_files(string filename, Size bild_groesse, double fps) {
 		file_gray = filename + "_gray.avi";
 		file_depth = filename + "_depth.avi";
@@ -149,16 +154,19 @@ public:
 		}
 	}
 
+    // Praktikum 1
 	void write_video_files() {
 		vw_gray.write(grayImage_edit);
 		vw_depth.write(depthImage_edit);
 	}
 
+    // Praktikum 1
 	void close_video_files() {
 		vw_gray.release();
 		vw_depth.release();
 	}
 
+    // Praktikum 1
 	string get_file_gray() { return file_gray; }
 	string get_file_depth() { return file_depth; }
 	void setMode(int nmode) { mode = nmode; }
@@ -167,6 +175,7 @@ public:
 	void setFrame(int frame) { glaettung_frame = frame; }
 	void set_mit_ueber_20_frames(vector<int> v) { mit_ueber_20_frames = v; };
 
+    // Praktikum 2
 	void glaettung_grauwerte() {
 		if (glaettung_frame < 21) {
 			// Fuer die ersten 20 Frames Mittelwert berechnen
@@ -229,6 +238,7 @@ public:
 		}
 	}
 
+    // Praktikum 2
 	void auswertung_geglaettete_grauwerte() {
 		// SIEHE: http://answers.opencv.org/question/120698/drawning-labeling-components-in-a-image-opencv-c/
 		// Schwellwertsegmentierung (OTSU)
@@ -243,7 +253,7 @@ public:
 		vector<int> tasten_labels;
 
         for (int i=1; i<labels; i++) {
-            if (debug) {
+            if (/*debug*/true) {
                 // ALLE gefundenen CCs und ihre Eigenschaften ausgeben!
                 cout << "\nComponent " << i << std::endl;
                 cout << "(X|Y)          = (" << stats.at<int>(i, CC_STAT_LEFT) << "|" << stats.at<int>(i, CC_STAT_TOP) << ")" << endl;
@@ -275,7 +285,9 @@ public:
 		
         if (tasten_labels.size() != 8) {
             // bsp. wenn man das Tastaturen-Blatt dreht oder aus dem Kamera-Feld bewegt
+            // Allerdings werden auch zwischendurch irgendwie mal wieder 8 Felder erkannt, auch wenn das nicht ganz stimmt!
             cerr << "Es wurden weniger oder mehr als 8 Tasten erkannt!" << endl;
+            return;
         }
         
         // Hier muss irgendwie überprüft werden, ob die Tastatur hochkant ist oder nicht!
@@ -318,13 +330,16 @@ public:
             
             int x = cc[i][0];
             int y = cc[i][1];
-            int color = (256/(tasten_labels.size() + 2))*(i+1);
             
-            rectangle(tastatur, Point(x, y), Point(x+cc[i][2], y+cc[i][3]), Scalar(color, color, color), FILLED);
+            farben = {
+                Scalar(26, 26, 26), Scalar(52, 52, 52), Scalar(78, 78, 78), Scalar(104, 104, 104),
+                Scalar(130, 130, 130), Scalar(156, 156, 156), Scalar(182, 182, 182), Scalar(208, 208, 208)
+            };
+            rectangle(tastatur, Point(x, y), Point(x + cc[i][2], y + cc[i][3]), farben[i], FILLED);
             
             // Der Rest hier hinter passiert eigentlich auch nur wegen Praktikum 2 Aufgabe: Nacheinander setzen (und nur wenns hochkannt ist!)
             Mat tastatur_letters = tastatur.clone();
-            string letters[] = {
+            letters = {
                 "A", "B", "C", "D", "E", "F", "G", "H"
             };
             putText(tastatur_letters, letters[i], Point(20, (8-i)*20), FONT_HERSHEY_COMPLEX_SMALL, 1.0, Scalar(128, 128, 128));
@@ -337,28 +352,38 @@ public:
     // Praktikum 3
     void auswertung_tiefenbild() {
         // Histogramm des Tiefenbilds erstellen& anzeigen (Tiefenbild muss Schwarz-Weiss sein!)
-        tiefenbild = depthImage_edit.clone();
-        cvtColor(tiefenbild, tiefenbild, COLOR_BGR2GRAY);
+        tiefenbild = depthImage_edit_gray.clone();
         Mat tiefen_hist = histogramm(tiefenbild);
         imshow("Histogramm (Tiefenbild)", tiefen_hist);
         
         // Gauss-Filter auf Histogramm anwenden (Groesse egal? hier mal 3x3 genommen)
         GaussianBlur(hist_values, hist_values, Size(3, 3), 0);
         
-        // Schwellwert suchen
+        // Schwellwert suchen (hier muss durch hist_values iteriert werden)
         double min, max;
         minMaxLoc(hist_values, &min, &max);
         
+        int highest_position = 256;
         int value = (int)max;
-        for (int i=(int)max; i>-1; i--) {
-            if (i > value) {
+        for (int i=0; i<256; i++) {
+            if (hist_values.at<uchar>(i) == max) {
+                highest_position = i;
                 break;
             }
         }
         
-        // Binaerbild mit Schwellwert erzeugen!
+        for (int i=highest_position; i>=0; i--) {
+            uchar wert_an_punkt_i = hist_values.at<uchar>(i);        // gibt ja nur eine Zeile an Werten!
+            if (wert_an_punkt_i > value) {
+                break;
+            }
+            value = wert_an_punkt_i;
+        }
+        
+        // Binaerbild mit Schwellwert erzeugen! -> ggf. erniedrigen
         Mat binaer_tiefen = tiefenbild.clone();
-        threshold(binaer_tiefen, binaer_tiefen, value, 255, THRESH_BINARY | THRESH_OTSU);
+        threshold(binaer_tiefen, binaer_tiefen, value, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+        imshow("Bienaerbild Tiefenbild", binaer_tiefen);
         
         // Binaerbild mit dem vorherigen vergleichen
         // CCs herausfinden, alle vergleichen, ob sie vorher schon dabei waren
@@ -392,10 +417,34 @@ public:
         } // -> hier sollten in "cc_tiefen_blau" nur alte und in "cc_tiefen_rot" nur neue CCs
         
         // Auf veränderten ein Opening durchfuehren (wie auch immer das nur auf den Bereichen gehen soll)
+        opening(tiefenbild, tiefenbild);
         
-        // Bereiche markieren ([BLAU -> neu,] ROT -> alt)
+        Mat tiefenbild_cc_tiefen = tiefenbild.clone();
+        for (vector<int> cc : cc_tiefen) {
+            int x = cc[0];
+            int y = cc[1];
+            rectangle(tiefenbild_cc_tiefen, Point(x, y), Point(x + cc[2], y + cc[3]), Scalar(255, 255, 255));
+        }
+        imshow("CC_Tiefen", tiefenbild_cc_tiefen);
+        
+        Mat tiefenbild_cc_tiefen_neue = tiefenbild.clone();
+        for (vector<int> cc : cc_tiefen_neue) {
+            int x = cc[0];
+            int y = cc[1];
+            rectangle(tiefenbild_cc_tiefen_neue, Point(x, y), Point(x + cc[2], y + cc[3]), Scalar(255, 255, 255));
+        }
+        imshow("CC_Tiefen_Neue", tiefenbild_cc_tiefen_neue);
+        
+        Mat tiefenbild_cc_blau = tiefenbild.clone();
+        for (vector<int> cc : cc_tiefen_blau) {
+            int x = cc[0];
+            int y = cc[1];
+            rectangle(tiefenbild_cc_blau, Point(x, y), Point(x + cc[2], y + cc[3]), Scalar(255, 255, 255));
+        }
+        imshow("CC_Tiefen_Blau", tiefenbild_cc_blau);
+        
+        // Bereiche markieren (ROT -> alt)
         Mat tiefenbild_markiert = tiefenbild.clone();
-        
         for (vector<int> rot : cc_tiefen_rot) {
             int x = rot[0];
             int y = rot[1];
@@ -432,6 +481,9 @@ public:
         // Tasten in Tiefenbild einzeichnen (Taste hervorheben), Buchstaben ausgeben
     }
     
+    /********************************************************************************************************************************************************\
+     * HILFSFUNKTIONEN
+    \********************************************************************************************************************************************************/
     Mat histogramm(Mat& bild) {
         int hist_w = 256;
         int hist_h = 450;
@@ -493,7 +545,8 @@ private:
 	\********************************************************************************************************************************************************/
 
 	// Praktikum 1
-	Mat depthImage_edit                             // Das Tiefenbild, nach Kontrastspreizung, Skalierung und Einfaerbung
+    Mat depthImage_edit_gray;                       // Das Tiefenbild, nach Kontrastspreizung und Skalierung
+    Mat depthImage_edit;                            // Das Tiefenbild, nach Kontrastspreizung, Skalierung und Einfaerbung
     Mat grayImage_edit;                             // Das Grauwertbild, nach Kontrastspreizung und Skalierung
 	VideoWriter vw_gray, vw_depth;                  // Die VideoWriter zum abspeichern der Videos!
     string file_depth;                              // Der Dateiname fuer das Tiefenbild
@@ -508,6 +561,8 @@ private:
     Mat mit_bild;                                   // Das Grauwertbild, das ueber den Mittelwert ermittelt wurde (wird nicht weiter verwendet)
     Mat grau_otsu;                                  // Das Grauwertbild, das mit OTSU segmentiert wurde
     bool hochkant;                                  // Gibt an, ob das Bild hochkant ist oder nicht!
+    vector<Scalar> farben;                          // Das Array mit allen Farben zur Zuordnung zu CCs
+    vector<string> letters;                         // Das Array nut allen Buchstaben zur Zuordnung zu CCs
     Mat tastatur;                                   // Das Bild der eingefärbten Tastatur.
     vector<vector<int>> cc;                         // Vektoren der einzelnen CCs mit X/Y-Koordinaten, Hoehe/Breite
     
@@ -540,31 +595,20 @@ int main(int argc, char *argv[]) {
     // Parameter abfragen & enrsprechend handeln
 	if (argc > 1) {
 		param = atoi(argv[1]);
-
 		if (param == 3) {
-			cout << "Bitte Datei-Namen des fertigen Videos eingeben" << endl;
-			cin >> filename;
-
+			cout << "Bitte Datei-Namen des fertigen Videos eingeben" << endl; cin >> filename;
 			VideoCapture cap(filename);
-			if (!cap.isOpened()) {
-				cerr << "Kann Video nicht wiedergeben" << endl;
-				return 1;
-			}
-
+			if (!cap.isOpened()) { cerr << "Kann Video nicht wiedergeben" << endl; return 1; }
 			Mat frame;
 			for (;;) {
 				cap >> frame;
-				if (frame.empty()) {
-					cerr << "Frame ist leer" << endl;
-					break;
-				}
+				if (frame.empty()) { cerr << "Frame ist leer" << endl; break; }
 				imshow("Video (Tiefen)", frame);
 				waitKey(20);
 			}
 			return 0;
 		} else if (param == 2) {
-			cout << "Bitte Datei-Praefix des aufnehmenden Videos eingeben" << endl;
-			cin >> filename;
+			cout << "Bitte Datei-Praefix des aufnehmenden Videos eingeben" << endl; cin >> filename;
 		}
 	}
 	/********************************************************************************************************************************************************\
@@ -572,20 +616,13 @@ int main(int argc, char *argv[]) {
 	* ENDE
 	\********************************************************************************************************************************************************/
 
-	// this represents the main camera device object
 	unique_ptr<royale::ICameraDevice> cameraDevice;
-
-	// the camera manager will query for a connected camera
 	{
 		royale::CameraManager manager;
-
-		// try to open the first connected camera
 		royale::Vector<royale::String> camlist(manager.getConnectedCameraList());
 		std::cout << "Detected " << camlist.size() << " camera(s)." << endl;
-
-		if (!camlist.empty()) {
-			cameraDevice = manager.createCamera(camlist[0]);
-		} else {
+		if (!camlist.empty()) { cameraDevice = manager.createCamera(camlist[0]); }
+        else {
 			cerr << "No suitable camera device detected." << endl
 				<< "Please make sure that a supported camera is plugged in, all drivers are "
 				<< "installed, and you have proper USB permission" << endl;
@@ -593,51 +630,19 @@ int main(int argc, char *argv[]) {
 		}
 		camlist.clear();
 	}
-
-	// the camera device is now available and CameraManager can be deallocated here
 	if (cameraDevice == nullptr) {
-		// no cameraDevice available
-		if (argc > 1) {
-			cerr << "Could not open " << argv[1] << endl;
-			return 1;
-		} else {
-			cerr << "Cannot create the camera device" << endl;
-			return 1;
-		}
+		if (argc > 1) { cerr << "Could not open " << argv[1] << endl; return 1; }
+        else { cerr << "Cannot create the camera device" << endl; return 1; }
 	}
-
-	// call the initialize method before working with the camera device
 	auto status = cameraDevice->initialize();
-	if (status != royale::CameraStatus::SUCCESS) {
-		cerr << "Cannot initialize the camera device, error string : " << getErrorString(status) << endl;
-		return 1;
-	}
-
-	// retrieve the lens parameters from Royale
+	if (status != royale::CameraStatus::SUCCESS) { cerr << "Cannot initialize the camera device, error string : " << getErrorString(status) << endl; return 1; }
 	royale::LensParameters lensParameters;
 	status = cameraDevice->getLensParameters(lensParameters);
-	if (status != royale::CameraStatus::SUCCESS) {
-		cerr << "Can't read out the lens parameters" << endl;
-		return 1;
-	}
-
+	if (status != royale::CameraStatus::SUCCESS) { cerr << "Can't read out the lens parameters" << endl; return 1; }
 	listener.setLensParameters(lensParameters);
-
-	// register a data listener
-	if (cameraDevice->registerDataListener(&listener) != royale::CameraStatus::SUCCESS) {
-		cerr << "Error registering data listener" << endl;
-		return 1;
-	}
-
-	// Belichtung muss auf Automatisch gesetzt werden
+	if (cameraDevice->registerDataListener(&listener) != royale::CameraStatus::SUCCESS) { cerr << "Error registering data listener" << endl; return 1; }
 	cameraDevice->setExposureMode(royale::ExposureMode::AUTOMATIC);
-
-	// Ganz normales Vorgehen nach Code-Geruest!
-	// start capture mode
-	if (cameraDevice->startCapture() != royale::CameraStatus::SUCCESS) {
-		cerr << "Error starting the capturing" << endl;
-		return 1;
-	}
+	if (cameraDevice->startCapture() != royale::CameraStatus::SUCCESS) { cerr << "Error starting the capturing" << endl; return 1; }
 
 	/********************************************************************************************************************************************************\
 	* ANFANG
@@ -682,10 +687,6 @@ int main(int argc, char *argv[]) {
 	* ENDE
 	\********************************************************************************************************************************************************/
 
-	// stop capture mode
-	if (cameraDevice->stopCapture() != royale::CameraStatus::SUCCESS) {
-		cerr << "Error stopping the capturing" << endl;
-		return 1;
-	}
+	if (cameraDevice->stopCapture() != royale::CameraStatus::SUCCESS) { cerr << "Error stopping the capturing" << endl; return 1; }
 	return 0;
 }

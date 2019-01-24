@@ -34,6 +34,7 @@ public:
     \********************************************************************************************************************************************************/
     void onNewData(Mat frame) {
         this->frame = frame;
+        imshow("Frame ohne alles", frame);
         
         // Testen, ob es Grauwert- oder Tiefenbild war!
         if (type) {
@@ -56,6 +57,7 @@ public:
             return;
         }
         
+        cvtColor(this->frame, depth_gray, COLOR_RGB2GRAY);
         auswertung_tiefenbild();
     }
     
@@ -74,7 +76,7 @@ public:
         vector<int> tasten_labels;
         
         for (int i=1; i<labels; i++) {
-            if (debug) {
+            if (/*debug*/true) {
                 // ALLE gefundenen CCs und ihre Eigenschaften ausgeben!
                 cout << "\nComponent " << i << std::endl;
                 cout << "(X|Y)          = (" << stats.at<int>(i, CC_STAT_LEFT) << "|" << stats.at<int>(i, CC_STAT_TOP) << ")" << endl;
@@ -106,7 +108,9 @@ public:
         
         if (tasten_labels.size() != 8) {
             // bsp. wenn man das Tastaturen-Blatt dreht oder aus dem Kamera-Feld bewegt
+            // Allerdings werden auch zwischendurch irgendwie mal wieder 8 Felder erkannt, auch wenn das nicht ganz stimmt!
             cerr << "Es wurden weniger oder mehr als 8 Tasten erkannt!" << endl;
+            return;
         }
         
         // Hier muss irgendwie überprüft werden, ob die Tastatur hochkant ist oder nicht!
@@ -148,13 +152,16 @@ public:
             
             int x = cc[i][0];
             int y = cc[i][1];
-            int color = (256/(tasten_labels.size() + 2))*(i+1);
             
-            rectangle(tastatur, Point(x, y), Point(x + cc[i][2], y + cc[i][3]), Scalar(color, color, color), FILLED);
+            farben = {
+                Scalar(26, 26, 26), Scalar(52, 52, 52), Scalar(78, 78, 78), Scalar(104, 104, 104),
+                Scalar(130, 130, 130), Scalar(156, 156, 156), Scalar(182, 182, 182), Scalar(208, 208, 208)
+            };
+            rectangle(tastatur, Point(x, y), Point(x + cc[i][2], y + cc[i][3]), farben[i], FILLED);
             
             // Der Rest hier hinter passiert eigentlich auch nur wegen Praktikum 2 Aufgabe: Nacheinander setzen (und nur wenns hochkannt ist!)
             Mat tastatur_letters = tastatur.clone();
-            string letters[] = {
+            letters = {
                 "A", "B", "C", "D", "E", "F", "G", "H"
             };
             putText(tastatur_letters, letters[i], Point(20, (8-i)*20), FONT_HERSHEY_COMPLEX_SMALL, 1.0, Scalar(128, 128, 128));
@@ -166,27 +173,38 @@ public:
     
     void auswertung_tiefenbild() {
         // Histogramm des Tiefenbilds erstellen& anzeigen (Tiefenbild muss Schwarz-Weiss sein!)
-        tiefenbild = frame.clone();
+        tiefenbild = depth_gray;
         Mat tiefen_hist = histogramm(tiefenbild);
         imshow("Histogramm (Tiefenbild)", tiefen_hist);
         
         // Gauss-Filter auf Histogramm anwenden (Groesse egal? hier mal 3x3 genommen)
         GaussianBlur(hist_values, hist_values, Size(3, 3), 0);
         
-        // Schwellwert suchen
+        // Schwellwert suchen (hier muss durch hist_values iteriert werden)
         double min, max;
         minMaxLoc(hist_values, &min, &max);
         
+        int highest_position = 256;
         int value = (int)max;
-        for (int i=(int)max; i>-1; i--) {
-            if (i > value) {
+        for (int i=0; i<256; i++) {
+            if (hist_values.at<uchar>(i) == max) {
+                highest_position = i;
                 break;
             }
         }
         
-        // Binaerbild mit Schwellwert erzeugen!
+        for (int i=highest_position; i>=0; i--) {
+            uchar wert_an_punkt_i = hist_values.at<uchar>(i);        // gibt ja nur eine Zeile an Werten!
+            if (wert_an_punkt_i > value) {
+                break;
+            }
+            value = wert_an_punkt_i;
+        }
+        
+        // Binaerbild mit Schwellwert erzeugen! -> ggf. erniedrigen
         Mat binaer_tiefen = tiefenbild.clone();
         threshold(binaer_tiefen, binaer_tiefen, value, 255, THRESH_BINARY | THRESH_OTSU);
+        imshow("Bienaerbild Tiefenbild", binaer_tiefen);
         
         // Binaerbild mit dem vorherigen vergleichen
         // CCs herausfinden, alle vergleichen, ob sie vorher schon dabei waren
@@ -220,10 +238,34 @@ public:
         } // -> hier sollten in "cc_tiefen_blau" nur alte und in "cc_tiefen_rot" nur neue CCs
         
         // Auf veränderten ein Opening durchfuehren (wie auch immer das nur auf den Bereichen gehen soll)
+        opening(tiefenbild, tiefenbild);
         
-        // Bereiche markieren ([BLAU -> neu,] ROT -> alt)
+        Mat tiefenbild_cc_tiefen = tiefenbild.clone();
+        for (vector<int> cc : cc_tiefen) {
+            int x = cc[0];
+            int y = cc[1];
+            rectangle(tiefenbild_cc_tiefen, Point(x, y), Point(x + cc[2], y + cc[3]), Scalar(255, 255, 255));
+        }
+        imshow("CC_Tiefen", tiefenbild_cc_tiefen);
+        
+        Mat tiefenbild_cc_tiefen_neue = tiefenbild.clone();
+        for (vector<int> cc : cc_tiefen_neue) {
+            int x = cc[0];
+            int y = cc[1];
+            rectangle(tiefenbild_cc_tiefen_neue, Point(x, y), Point(x + cc[2], y + cc[3]), Scalar(255, 255, 255));
+        }
+        imshow("CC_Tiefen_Neue", tiefenbild_cc_tiefen_neue);
+        
+        Mat tiefenbild_cc_blau = tiefenbild.clone();
+        for (vector<int> cc : cc_tiefen_blau) {
+            int x = cc[0];
+            int y = cc[1];
+            rectangle(tiefenbild_cc_blau, Point(x, y), Point(x + cc[2], y + cc[3]), Scalar(255, 255, 255));
+        }
+        imshow("CC_Tiefen_Blau", tiefenbild_cc_blau);
+        
+        // Bereiche markieren (ROT -> alt)
         Mat tiefenbild_markiert = tiefenbild.clone();
-        
         for (vector<int> rot : cc_tiefen_rot) {
             int x = rot[0];
             int y = rot[1];
@@ -317,8 +359,11 @@ private:
     Mat grayscale;                                  // Das Grauwertbild (musste im Praktikum nicht konvertiert werden!)
     Mat grau_otsu;                                  // Das mit OTSU segmentierte Grauwert-Bild
     bool hochkant;                                  // Gibt an, ob das Bild hochkant ist oder nicht!
+    vector<Scalar> farben;                          // Das Array mit allen Farben zur Zuordnung zu CCs
+    vector<string> letters;                         // Das Array nut allen Buchstaben zur Zuordnung zu CCs
     Mat tastatur;                                   // Das Bild der eingefärbten Tastatur.
     vector<vector<int>> cc;                         // Vektoren der einzelnen CCs mit X/Y-Koordinaten, Hoehe/Breite
+    Mat depth_gray;                                 // Das Tiefenbild in ein Grauwert-Bild konvertiert
     Mat tiefenbild;                                 // Das Tiefenbild, abgespeichert um es mehrfach zu verwenden
     Mat hist_values;                                // Fuer alle 0-255 Werte des Histogramms, die Anzahl, wie oft jeder Wert vorkommt (gebraucht fuer Min/Max)
     vector<vector<int>> cc_tiefen;                  // Vektoren der einzelnen Tiefen-CCs mit X/Y-Koordinaten, Hoehe/Breite fuer Vergleich naechster Frame
@@ -334,9 +379,11 @@ private:
 \********************************************************************************************************************************************************/
 int main(int argc, const char * argv[]) {
     string files[] = {
-        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_robust_gray.avi",      // hier wird nur rumgewackelt und gedreht -> kann weg
-        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_portrait_gray.avi",    // das Video is hochkant
-        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_portrait_depth.avi"    // das Video zeigt nicht wirklich irgendwas -> kann weg
+        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_robust_gray.avi",      // das Video ist breit, zeigt aber auch wo noch ungenau!
+        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_portrait_gray.avi",    // das Video ist hochkant
+        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/kb_portrait_depth.avi",   // das Video zeigt nichts sinnvolles! -> kann weg!
+        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/tr_depth_trim.avi",       // Tiefenbild-Video in Farbe von Ilja
+        "/Users/thahnen/GitHub/gra-praktikum/Vorbereitung/GRA-Praktikum/GRA-Praktikum/tr_grey_trim.avi"         // Grauwertbild-Video von Ilja
     };
     
     // Parameter true -> Grauwert!
