@@ -61,11 +61,11 @@ public:
 		if (mode == 2) {
 			write_video_files();
         } else {
-            glaettung_grauwerte();
+            auswertung_geglaettete_grauwerte();
+            auswertung_tiefenbild();
             
-            //imshow("Mit20", mit20_bild);
-            //imshow("Med", med_bild);
-            //imshow("Mit", mit_bild);
+            /* DAS HIER WAR PRAKTIKUM 2 !!!
+            glaettung_grauwerte();
             
             if (glaettung_frame > 21) {
                 auswertung_geglaettete_grauwerte();
@@ -74,10 +74,12 @@ public:
                     imshow("OTSU", grau_otsu);
                 }
                 
+                imshow("Mit20", mit20_bild);
+                imshow("Med", med_bild);
+                imshow("Mit", mit_bild);
+                
                 imshow("Tastatur", tastatur);
-            }
-
-			//auswertung_geglaettete_grauwerte();
+            }*/
         }
 
 		/********************************************************************************************************************************************************\
@@ -128,7 +130,7 @@ public:
 		convertScaleAbs(zImage, depth_CV_8UC1, scale);
         
         // Hier zwischen noch depth_CV_8UC1 abspeichern, damit wird dann später weitergearbeitet
-		//depthImage_edit_gray = depth_CV_8UC1;
+		depthImage_edit_gray = depth_CV_8UC1;
 
 		// Einfaerbung mit COLORMAP_RAINBOW
 		Mat color_map;
@@ -143,30 +145,18 @@ public:
 
 		// VideoWriter fuer Graubild oeffnen
 		vw_gray.open(file_gray, VideoWriter::fourcc('M', 'J', 'P', 'G'), fps, bild_groesse, false);
-		if (!vw_gray.isOpened()) {
-			cout << "ERROR: Failed open VideoWriter for GrayScale" << endl;
-			exit(1);
-		}
+		if (!vw_gray.isOpened()) { cout << "ERROR: Failed open VideoWriter for GrayScale" << endl; exit(1); }
 
 		// VideoWriter fuer Tiefenbild oeffnen
 		vw_depth.open(file_depth, VideoWriter::fourcc('M', 'J', 'P', 'G'), fps, bild_groesse, true);
-		if (!vw_depth.isOpened()) {
-			cout << "ERROR: Failed open VideoWriter for Depth" << endl;
-			exit(1);
-		}
+		if (!vw_depth.isOpened()) { cout << "ERROR: Failed open VideoWriter for Depth" << endl; exit(1); }
 	}
 
-    // Praktikum 1
-	void write_video_files() {
-		vw_gray.write(grayImage_edit);
-		vw_depth.write(depthImage_edit);
-	}
+    // Praktikum 1 -> hier muss beim Tiefen-Bild das nicht-farbige abgespeichert werden!
+	void write_video_files() { vw_gray.write(grayImage_edit); vw_depth.write(depthImage_edit_gray); }
 
     // Praktikum 1
-	void close_video_files() {
-		vw_gray.release();
-		vw_depth.release();
-	}
+	void close_video_files() { vw_gray.release(); vw_depth.release(); }
 
     // Praktikum 1
 	string get_file_gray() { return file_gray; }
@@ -177,7 +167,7 @@ public:
 	void setFrame(int frame) { glaettung_frame = frame; }
 	void set_mit_ueber_20_frames(vector<int> v) { mit_ueber_20_frames = v; };
 
-    // Praktikum 2
+    // Praktikum 2 -> wird nicht mehr benutzt
 	void glaettung_grauwerte() {
 		if (glaettung_frame < 21) {
 			// Fuer die ersten 20 Frames Mittelwert berechnen
@@ -187,8 +177,7 @@ public:
 				}
 			}
 			glaettung_frame++;
-		}
-		else {
+		} else {
 			// Linienprofil-Bild (Breite * Hoehe => 256 * [Hoehe des Graubilds])
 			Mat linienprofil(256, grayImage_edit.rows, CV_8UC3);
 
@@ -198,14 +187,10 @@ public:
 			// "Anwendung" Mittelwert über 20 Frames => klappt nicht ganz, irgendwas ist da kaputt!
 			if (glaettung_frame == 21) {
 				mit20_bild = Mat(grayImage_edit.rows, grayImage_edit.cols, CV_8UC1);
-				for (int i = 0; i < mit_ueber_20_frames.size(); i++) {
-					mit_ueber_20_frames[i] = (int)mit_ueber_20_frames[i] / 20;
-				}
+				for (int i = 0; i < mit_ueber_20_frames.size(); i++) { mit_ueber_20_frames[i] = (int)mit_ueber_20_frames[i] / 20; }
 				
 				for (int i = 0; i < mit20_bild.rows; i++) {
-					for (int j = 0; j < mit20_bild.cols; j++) {
-						mit20_bild.at<uchar>(i, j) = mit_ueber_20_frames[i*grayImage_edit.rows + j];
-					}
+					for (int j = 0; j < mit20_bild.cols; j++) { mit20_bild.at<uchar>(i, j) = mit_ueber_20_frames[i*grayImage_edit.rows + j]; }
 				}
 				glaettung_frame++;
 			}
@@ -235,13 +220,16 @@ public:
 			for (uchar i = 0; i < linienprofil.cols - 1; i++) {
 				line(linienprofil, Point(i, mit_bild.at<uchar>(x_wert, i)), Point(i + 1, mit_bild.at<uchar>(x_wert, i + 1)), mit);
 			}
-
 			imshow("Linienprofil", linienprofil);
 		}
 	}
 
     // Praktikum 2
 	void auswertung_geglaettete_grauwerte() {
+        // Anwendung Medianfilter (Groesse 3x3), weil glaettung_grauwerte() nicht mehr aufgerufen wird!!!
+        med_bild = grayImage_edit.clone();
+        medianBlur(grayImage_edit, med_bild, 3);
+        
 		// SIEHE: http://answers.opencv.org/question/120698/drawning-labeling-components-in-a-image-opencv-c/
 		// Schwellwertsegmentierung (OTSU)
 		// ggf. vor OTSU noch ein Closing durchfuehren? -> Frau P.-F. meinte nicht noetig
@@ -255,7 +243,7 @@ public:
 		vector<int> tasten_labels;
 
         for (int i=1; i<labels; i++) {
-            if (/*debug*/true) {
+            if (debug) {
                 // ALLE gefundenen CCs und ihre Eigenschaften ausgeben!
                 cout << "\nComponent " << i << std::endl;
                 cout << "(X|Y)          = (" << stats.at<int>(i, CC_STAT_LEFT) << "|" << stats.at<int>(i, CC_STAT_TOP) << ")" << endl;
@@ -375,7 +363,7 @@ public:
         }
         
         for (int i=highest_position; i>=0; i--) {
-            uchar wert_an_punkt_i = hist_values.at<uchar>(i);        // gibt ja nur eine Zeile an Werten!
+            uchar wert_an_punkt_i = hist_values.at<uchar>(i); // gibt ja nur eine Zeile an Werten!
             if (wert_an_punkt_i > value) {
                 break;
             }
@@ -394,17 +382,19 @@ public:
         vector<vector<int>> cc_tiefen_neue;
         
         for (int i=0; i<labels; i++) {
-            cc_tiefen_neue.push_back({
-                stats.at<int>(i, CC_STAT_LEFT),
-                stats.at<int>(i, CC_STAT_TOP),
-                stats.at<int>(i, CC_STAT_WIDTH),
-                stats.at<int>(i, CC_STAT_HEIGHT)
-            });
+            // hier noch ueberpruefen, ob die Flaeche groesser ist als Kleinscheiss
+            if (stats.at<int>(i, CC_STAT_AREA) > 100) {
+                cc_tiefen_neue.push_back({
+                    stats.at<int>(i, CC_STAT_LEFT),
+                    stats.at<int>(i, CC_STAT_TOP),
+                    stats.at<int>(i, CC_STAT_WIDTH),
+                    stats.at<int>(i, CC_STAT_HEIGHT)
+                });
+            }
         }
         
-        // cc_tiefen ist beim ersten Mal noch nicht gesetzt, das muss vorher abgefangen werden!
-        cc_tiefen_blau = cc_tiefen;                     // alte kopieren, damit dann dort alle gleichen rausgeloescht werden koennen (uebrig bleiben die weggefallenen!)
-        cc_tiefen_rot = cc_tiefen_neue;                 // neue kopieren, damit dann dort alle gleichen rausgeloescht werden koennen (uebrig bleiben die hinzugekommenen!)
+        cc_tiefen_blau = cc_tiefen;     // alte kopieren, damit dann dort alle gleichen rausgeloescht werden koennen (uebrig bleiben die weggefallenen!)
+        cc_tiefen_rot = cc_tiefen_neue; // neue kopieren, damit dann dort alle gleichen rausgeloescht werden koennen (uebrig bleiben die hinzugekommenen!)
         for (vector<int> x : cc_tiefen_rot) {
             // Ueberpruefen, ob die schon im alten waren
             for (vector<int> y : cc_tiefen_blau) {
@@ -463,8 +453,8 @@ public:
                 int anzahl = 0;
                 for (int i=rot[0]; i<rot[0]+rot[2]; i++) {                          // CC.X <= i < CC.X + CC.Breite &
                     for (int j=rot[1]; j<rot[1]+rot[3]; j++) {                      // CC.Y <= j < CC.Y + CC.Hoehe ->
-                        if (((i >= taste[0]) && (i < taste[0]+taste[2]))           //      Taste.X <= i < Taste.X + Taste.Breite &
-                            && ((j >= taste[1]) && ( j < taste[1]+taste[3]))) {   //      Taste.Y <= j < Taste.Y + Taste.Hoehe ->
+                        if (((i >= taste[0]) && (i < taste[0]+taste[2]))            //      Taste.X <= i < Taste.X + Taste.Breite &
+                            && ((j >= taste[1]) && ( j < taste[1]+taste[3]))) {     //      Taste.Y <= j < Taste.Y + Taste.Hoehe ->
                             anzahl++;                                               //          Drin: Anzahl + 1
                         }
                     }
@@ -674,7 +664,12 @@ int main(int argc, char *argv[]) {
 	namedWindow("Depth (Edit)");
 
 	// "Endlosschleife" fuer Anzeige der Tiefen- / Grauwertbilder usw. sowie Aufnahme der Bilder
-	for (;;) { if (waitKey(1) == 13) { break; } }
+	for (;;) {
+        listener.write_video_files();
+        if (waitKey(1) == 13) {
+            break;
+        }
+    }
 
 	if (param == 2) {
 		listener.close_video_files();
