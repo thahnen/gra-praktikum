@@ -12,7 +12,7 @@
 #include <mutex>
 #include <opencv2/opencv.hpp>
 
-#define debug true
+#define debug false
 
 using namespace std;
 using namespace cv;
@@ -52,16 +52,16 @@ public:
 
 		edit_gray_picture();
 		edit_depth_picture();
-        if (debug) {
-            imshow("Gray (Edit)", grayImage_edit);
-            imshow("Depth (Edit)", depthImage_edit);
-        }
+
+		imshow("Gray (Edit)", grayImage_edit);
+		imshow("Depth (Edit)", depthImage_edit);
 
 		// Nur Video aufnehmen, wenn es auch der Parameter sagt
 		if (mode == 2) {
 			write_video_files();
         } else {
             auswertung_geglaettete_grauwerte();
+
             auswertung_tiefenbild();
             
             /* DAS HIER WAR PRAKTIKUM 2 !!!
@@ -127,15 +127,17 @@ public:
 
 		// Skalierung berechnen & Bild skalieren
 		double scale = 255 / (max - min);
-		convertScaleAbs(zImage, depth_CV_8UC1, scale);
+		convertScaleAbs(zImage, depth_CV_8UC1, scale, (-min*scale));
         
         // Hier zwischen noch depth_CV_8UC1 abspeichern, damit wird dann später weitergearbeitet
-		depthImage_edit_gray = depth_CV_8UC1;
+		depthImage_edit_gray = depth_CV_8UC1.clone();
 
 		// Einfaerbung mit COLORMAP_RAINBOW
 		Mat color_map;
 		applyColorMap(depth_CV_8UC1, color_map, COLORMAP_RAINBOW);
 		depthImage_edit = color_map;
+
+		//cvtColor(depthImage_edit, depthImage_edit_gray, CV_BGR2GRAY);
 	}
 
     // Praktikum 1
@@ -310,6 +312,8 @@ public:
         tastatur = grayImage_edit.clone();
         cvtColor(tastatur, tastatur, COLOR_GRAY2BGR);   // muss, da hier im Gegensatz zur Vorbereitung Bild (aus Video) nicht farbig ist!
         
+		// Loescht die bestehenden CCs!
+		cc.clear();
         for (int i=0; i<tasten_labels.size(); i++) {
             cc.push_back({
                 stats.at<int>(tasten_labels[i], CC_STAT_LEFT),
@@ -326,17 +330,14 @@ public:
                 Scalar(130, 130, 130), Scalar(156, 156, 156), Scalar(182, 182, 182), Scalar(208, 208, 208)
             };
             rectangle(tastatur, Point(x, y), Point(x + cc[i][2], y + cc[i][3]), farben[i], FILLED);
-            
-            // Der Rest hier hinter passiert eigentlich auch nur wegen Praktikum 2 Aufgabe: Nacheinander setzen (und nur wenns hochkannt ist!)
-            Mat tastatur_letters = tastatur.clone();
+
             letters = {
                 "A", "B", "C", "D", "E", "F", "G", "H"
             };
-            putText(tastatur_letters, letters[i], Point(20, (8-i)*20), FONT_HERSHEY_COMPLEX_SMALL, 1.0, Scalar(128, 128, 128));
-            
-            imshow("Tasten einzeichnen...", tastatur_letters);
-            waitKey(150);
+
+            waitKey(1);
         }
+		imshow("Tastatur", tastatur);
 	}
     
     // Praktikum 3
@@ -356,14 +357,14 @@ public:
         int highest_position = 256;
         int value = (int)max;
         for (int i=0; i<256; i++) {
-            if (hist_values.at<uchar>(i) == max) {
+            if (hist_values.at<float>(i) == max) {
                 highest_position = i;
                 break;
             }
         }
         
         for (int i=highest_position; i>=0; i--) {
-            uchar wert_an_punkt_i = hist_values.at<uchar>(i); // gibt ja nur eine Zeile an Werten!
+            uchar wert_an_punkt_i = hist_values.at<float>(i); // gibt ja nur eine Zeile an Werten!
             if (wert_an_punkt_i > value) {
                 break;
             }
@@ -373,103 +374,80 @@ public:
         // Binaerbild mit Schwellwert erzeugen! -> ggf. erniedrigen
         Mat binaer_tiefen = tiefenbild.clone();
         threshold(binaer_tiefen, binaer_tiefen, value, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
-        imshow("Bienaerbild Tiefenbild", binaer_tiefen);
-        
-        // Binaerbild mit dem vorherigen vergleichen
-        // CCs herausfinden, alle vergleichen, ob sie vorher schon dabei waren
-        Mat label_image, stats, centroid;
-        int labels = connectedComponentsWithStats(grau_otsu, label_image, stats, centroid, 8, CV_32S);
-        vector<vector<int>> cc_tiefen_neue;
-        
-        for (int i=0; i<labels; i++) {
-            // hier noch ueberpruefen, ob die Flaeche groesser ist als Kleinscheiss
-            if (stats.at<int>(i, CC_STAT_AREA) > 100) {
-                cc_tiefen_neue.push_back({
-                    stats.at<int>(i, CC_STAT_LEFT),
-                    stats.at<int>(i, CC_STAT_TOP),
-                    stats.at<int>(i, CC_STAT_WIDTH),
-                    stats.at<int>(i, CC_STAT_HEIGHT)
-                });
-            }
-        }
-        
-        cc_tiefen_blau = cc_tiefen;     // alte kopieren, damit dann dort alle gleichen rausgeloescht werden koennen (uebrig bleiben die weggefallenen!)
-        cc_tiefen_rot = cc_tiefen_neue; // neue kopieren, damit dann dort alle gleichen rausgeloescht werden koennen (uebrig bleiben die hinzugekommenen!)
-        for (vector<int> x : cc_tiefen_rot) {
-            // Ueberpruefen, ob die schon im alten waren
-            for (vector<int> y : cc_tiefen_blau) {
-                // Vergleich einfach, ob neues CC gleich mit irgendeinem alten ist
-                if ((x[0] == y[0]) && (x[1] == y[1])) {
-                    // Gefunden, also muessen beide Objekte geoescht werden und aeussere Schleife weitergemacht werden (aka naechstes Element)
-                    cc_tiefen_blau.erase(find(cc_tiefen_blau.begin(), cc_tiefen_blau.end(), y));
-                    cc_tiefen_rot.erase(find(cc_tiefen_rot.begin(), cc_tiefen_rot.end(), x));
-                    break;
-                }
-            }
-        } // -> hier sollten in "cc_tiefen_blau" nur alte und in "cc_tiefen_rot" nur neue CCs
-        
-        // Auf veränderten ein Opening durchfuehren (wie auch immer das nur auf den Bereichen gehen soll)
-        opening(tiefenbild, tiefenbild);
-        
-        Mat tiefenbild_cc_tiefen = tiefenbild.clone();
-        for (vector<int> cc : cc_tiefen) {
-            int x = cc[0];
-            int y = cc[1];
-            rectangle(tiefenbild_cc_tiefen, Point(x, y), Point(x + cc[2], y + cc[3]), Scalar(255, 255, 255));
-        }
-        imshow("CC_Tiefen", tiefenbild_cc_tiefen);
-        
-        Mat tiefenbild_cc_tiefen_neue = tiefenbild.clone();
-        for (vector<int> cc : cc_tiefen_neue) {
-            int x = cc[0];
-            int y = cc[1];
-            rectangle(tiefenbild_cc_tiefen_neue, Point(x, y), Point(x + cc[2], y + cc[3]), Scalar(255, 255, 255));
-        }
-        imshow("CC_Tiefen_Neue", tiefenbild_cc_tiefen_neue);
-        
-        Mat tiefenbild_cc_blau = tiefenbild.clone();
-        for (vector<int> cc : cc_tiefen_blau) {
-            int x = cc[0];
-            int y = cc[1];
-            rectangle(tiefenbild_cc_blau, Point(x, y), Point(x + cc[2], y + cc[3]), Scalar(255, 255, 255));
-        }
-        imshow("CC_Tiefen_Blau", tiefenbild_cc_blau);
-        
-        // Bereiche markieren (ROT -> alt)
-        Mat tiefenbild_markiert = tiefenbild.clone();
-        for (vector<int> rot : cc_tiefen_rot) {
-            int x = rot[0];
-            int y = rot[1];
-            
-            rectangle(tiefenbild_markiert, Point(x, y), Point(x + rot[2], y + rot[3]), Scalar(255, 255, 255));
-        }
-        imshow("Rote Bereiche in Tiefenbild", tiefenbild_markiert); // nur zu DEBUG-Zwecken?
-        
-        // Haeufigkeit berechnen -> alle Pixel in CCs nach alllen Tasten suchen
-        vector<int> haeufigkeiten;
-        for (vector<int> rot : cc_tiefen_rot) {
-            for (vector<int> taste : cc) {
-                // Gucken, ob jeder Pixel in Rot (Breite x Hoehe) im Bereich der Tasten liegt!
-                int anzahl = 0;
-                for (int i=rot[0]; i<rot[0]+rot[2]; i++) {                          // CC.X <= i < CC.X + CC.Breite &
-                    for (int j=rot[1]; j<rot[1]+rot[3]; j++) {                      // CC.Y <= j < CC.Y + CC.Hoehe ->
-                        if (((i >= taste[0]) && (i < taste[0]+taste[2]))            //      Taste.X <= i < Taste.X + Taste.Breite &
-                            && ((j >= taste[1]) && ( j < taste[1]+taste[3]))) {     //      Taste.Y <= j < Taste.Y + Taste.Hoehe ->
-                            anzahl++;                                               //          Drin: Anzahl + 1
-                        }
-                    }
-                }
-                haeufigkeiten.push_back(anzahl);    // das hier funktioniert nur, wenn es nur eine einzige Rote Flaeche gibt!
-                goto annahme_nur_eine_rote_flaeche_alle_anderen_ignoriert;
-            }
-        }
-        
-    annahme_nur_eine_rote_flaeche_alle_anderen_ignoriert:
-        index_max_value = distance(haeufigkeiten.begin(), max_element(haeufigkeiten.begin(), haeufigkeiten.end())); // -> Die Taste cc[i] ist die gedrueckte!
-        
+		imshow("Histogramm (Tiefen-Binaer)", histogramm(binaer_tiefen));
+
+		// Bild mit altem Bild vergleichen!
+		Mat rot(binaer_tiefen.rows, binaer_tiefen.cols, CV_8UC3, Scalar(0, 0, 0));
+		Mat blau(binaer_tiefen.rows, binaer_tiefen.cols, CV_8UC3, Scalar(0, 0, 0));
+
+		if (vorhanden) {
+			//imshow("Alt bin Tiefen", altes_binaer_tiefen);
+			//imshow("Neu bin Tiefen", binaer_tiefen);
+
+			// Hier das alte binäre Tiefenbild mit dem neuen Vergleichen!
+			// wenn Hand da, dann Farbwert 0 ansonsten 255!
+
+			for (uchar i=0; i < binaer_tiefen.rows; i++) {
+				for (uchar j = 0; j < binaer_tiefen.cols; j++) {
+					if (binaer_tiefen.at<uchar>(i, j) == 0 && altes_binaer_tiefen.at<uchar>(i, j) == 255) {
+						// Uebergang von schwarz zu weiss -> Finger geht runter
+						rot.at<Vec3b>(i, j) = Vec3b(0, 0, 255);
+					} else if (binaer_tiefen.at<uchar>(i, j) == 255 && altes_binaer_tiefen.at<uchar>(i, j) == 0) {
+						// Uebergang von weiss zu schwarz -> Finger geht hoch (oder erscheint neu!)
+						blau.at<Vec3b>(i, j) = Vec3b(255, 0, 0);
+					}
+				}
+			}
+
+			// dann das neue als das alte setzen!
+			altes_binaer_tiefen = binaer_tiefen.clone();
+		} else {
+			altes_binaer_tiefen = binaer_tiefen.clone();
+			vorhanden = true;
+		}
         
         // Tasten in Bild mit Roten Segmenten zeichnen (Taste hervorheben)
-        
+
+		for (int i=0; i < cc.size(); i++) {
+			int x = cc[i][0];
+			int y = cc[i][1];
+
+			rectangle(rot, Point(x, y), Point(x + cc[i][2], y + cc[i][3]), Scalar(255, 255, 255));
+		}
+		imshow("Rot mit Tasten", rot);
+		//imshow("Blau", blau);
+
+		int anzahl_pro_taste[] = {
+			0, 0, 0, 0, 0, 0, 0, 0
+		};
+		
+		for (uchar i = 0; i < rot.rows; i++) {
+			for (uchar j = 0; j < rot.cols; j++) {
+				if (rot.at<Vec3b>(i, j) == Vec3b(0, 0, 255)) {
+					for (int k = 0; k < cc.size(); k++) {
+						int x = cc[k][0];
+						int y = cc[k][1];
+						int x2 = x + cc[k][2];
+						int y2 = y + cc[k][3];
+
+						if (i>x && i<x2 && j>y && j<y2) {
+							anzahl_pro_taste[k]++;
+						}
+					}
+				}
+			}
+		}
+
+		// Hier den Index vom maximalen Wert in "anzahl_pro_taste" finden
+		int max_index = 0;
+		cout << "A: " << anzahl_pro_taste[0] << endl;
+		cout << "B: " << anzahl_pro_taste[1] << endl;
+		cout << "C: " << anzahl_pro_taste[2] << endl;
+		cout << "D: " << anzahl_pro_taste[3] << endl;
+		cout << "E: " << anzahl_pro_taste[4] << endl;
+		cout << "F: " << anzahl_pro_taste[5] << endl;
+		cout << "G: " << anzahl_pro_taste[6] << endl;
+		cout << "H: " << anzahl_pro_taste[7] << endl;
         // Tasten in Tiefenbild einzeichnen (Taste hervorheben), Buchstaben ausgeben
     }
     
@@ -561,10 +539,8 @@ private:
     // Praktikum 3
     Mat tiefenbild;                                 // Das Tiefenbild, abgespeichert um es mehrfach zu verwenden
     Mat hist_values;                                // Fuer alle 0-255 Werte des Histogramms, die Anzahl, wie oft jeder Wert vorkommt (gebraucht fuer Min/Max)
-    vector<vector<int>> cc_tiefen;                  // Vektoren der einzelnen Tiefen-CCs mit X/Y-Koordinaten, Hoehe/Breite fuer Vergleich naechster Frame
-    vector<vector<int>> cc_tiefen_blau;             // Alle alten CCs, die nicht auch bei den neuen CCs dabei sind!
-    vector<vector<int>> cc_tiefen_rot;              // Alle neuen CCs, die nicht auch bei den alten CCs dabei sind!
-    int index_max_value;                            // Gibt Index der Taste an, die gedrueckt wurde (muss aus allen roten Flaechen ausgewaehlt werden?)
+	bool vorhanden = false;							// Ueberprueft, ob es der erste Frame ist!
+	Mat altes_binaer_tiefen;						// Das binäre Tiefenbild aus dem alten Frame!
 
 	/********************************************************************************************************************************************************\
 	* Praktikum 1/2/3 Inhaltliche Veraenderungen

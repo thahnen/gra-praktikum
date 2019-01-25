@@ -1,4 +1,4 @@
 ﻿  main.cpp
-c:\users\forall\desktop\gra-praktikum\gra-praktikum\main.cpp(478): warning C4244: "=": Konvertierung von "__int64" in "int", möglicher Datenverlust
+c:\users\forall\desktop\gra-praktikum\gra-praktikum\main.cpp(367): warning C4244: "Initialisierung": Konvertierung von "float" in "uchar", möglicher Datenverlust
   GRA-Praktikum.vcxproj -> C:\Users\forall\Desktop\GRA-Praktikum\x64\Debug\GRA-Praktikum.exe
   GRA-Praktikum.vcxproj -> C:\Users\forall\Desktop\GRA-Praktikum\x64\Debug\GRA-Praktikum.pdb (Partial PDB)
