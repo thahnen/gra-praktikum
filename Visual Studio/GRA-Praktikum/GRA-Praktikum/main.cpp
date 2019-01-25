@@ -12,7 +12,7 @@
 #include <mutex>
 #include <opencv2/opencv.hpp>
 
-#define debug false
+#define debug true
 
 using namespace std;
 using namespace cv;
@@ -63,9 +63,9 @@ public:
         } else {
             glaettung_grauwerte();
             
-            imshow("Mit20", mit20_bild);
-            imshow("Med", med_bild);
-            imshow("Mit", mit_bild);
+            //imshow("Mit20", mit20_bild);
+            //imshow("Med", med_bild);
+            //imshow("Mit", mit_bild);
             
             if (glaettung_frame > 21) {
                 auswertung_geglaettete_grauwerte();
@@ -76,6 +76,8 @@ public:
                 
                 imshow("Tastatur", tastatur);
             }
+
+			//auswertung_geglaettete_grauwerte();
         }
 
 		/********************************************************************************************************************************************************\
@@ -126,7 +128,7 @@ public:
 		convertScaleAbs(zImage, depth_CV_8UC1, scale);
         
         // Hier zwischen noch depth_CV_8UC1 abspeichern, damit wird dann später weitergearbeitet
-        depthImage_edit_gray = depth_CV_8UC1
+		//depthImage_edit_gray = depth_CV_8UC1;
 
 		// Einfaerbung mit COLORMAP_RAINBOW
 		Mat color_map;
@@ -225,13 +227,13 @@ public:
 			// Linienprofil fuer Medianfilter zeichnen
 			Scalar med(0, 255, 0);
 			for (uchar i = 0; i < linienprofil.cols-1; i++) {
-				line(linienprofil, Point(i, median_bild.at<uchar>(x_wert, i)), Point(i+1, median_bild.at<uchar>(x_wert, i+1)), med);
+				line(linienprofil, Point(i, med_bild.at<uchar>(x_wert, i)), Point(i+1, med_bild.at<uchar>(x_wert, i+1)), med);
 			}
 
 			// Linienprofil fuer Mittelwertfilter zeichen
 			Scalar mit(0, 0, 255);
 			for (uchar i = 0; i < linienprofil.cols - 1; i++) {
-				line(linienprofil, Point(i, mittelwert_bild.at<uchar>(x_wert, i)), Point(i + 1, mittelwert_bild.at<uchar>(x_wert, i + 1)), mit);
+				line(linienprofil, Point(i, mit_bild.at<uchar>(x_wert, i)), Point(i + 1, mit_bild.at<uchar>(x_wert, i + 1)), mit);
 			}
 
 			imshow("Linienprofil", linienprofil);
@@ -266,7 +268,7 @@ public:
             // WERTE IM PRAKTIKUM AENDERN; DIE HIER SIND FUERS VIDEO!
             int untere = 1000;
             int obere = 2000;
-            if ((stats.at<int>(i, CC_STAT_AREA) > untere) and (stats.at<int>(i, CC_STAT_AREA) < obere)) {
+            if ((stats.at<int>(i, CC_STAT_AREA) > untere) && (stats.at<int>(i, CC_STAT_AREA) < obere)) {
                 for (int j=1; j<labels; j++) {
                     if (i==j) { continue; }
                     
@@ -274,8 +276,8 @@ public:
                     int w_obere = stats.at<int>(j, CC_STAT_WIDTH) + 10;
                     int h_untere = stats.at<int>(j, CC_STAT_HEIGHT) - 10;
                     int h_obere = stats.at<int>(j, CC_STAT_HEIGHT) + 10;
-                    if (((stats.at<int>(i, CC_STAT_WIDTH) > w_untere) and (stats.at<int>(i, CC_STAT_WIDTH) < w_obere))
-                        and ((stats.at<int>(i, CC_STAT_HEIGHT) > h_untere) and (stats.at<int>(i, CC_STAT_HEIGHT) < h_obere))) {
+                    if (((stats.at<int>(i, CC_STAT_WIDTH) > w_untere) && (stats.at<int>(i, CC_STAT_WIDTH) < w_obere))
+                        && ((stats.at<int>(i, CC_STAT_HEIGHT) > h_untere) && (stats.at<int>(i, CC_STAT_HEIGHT) < h_obere))) {
                         tasten_labels.push_back(i);
                         break;
                     }
@@ -294,7 +296,7 @@ public:
         hochkant = true;
         int y_untere = stats.at<int>(tasten_labels[0], CC_STAT_TOP) - 10;
         int y_obere = stats.at<int>(tasten_labels[0], CC_STAT_TOP) + 10;
-        if ((stats.at<int>(tasten_labels[1], CC_STAT_TOP) > y_untere) and (stats.at<int>(tasten_labels[1], CC_STAT_TOP) < y_obere)) {
+        if ((stats.at<int>(tasten_labels[1], CC_STAT_TOP) > y_untere) && (stats.at<int>(tasten_labels[1], CC_STAT_TOP) < y_obere)) {
             // nicht hochkant, da alle Y-Koordinaten ungefähr gleich!
             cout << "Nicht hochkant!" << endl;
             hochkant = false;
@@ -317,7 +319,7 @@ public:
         }
         
         // Tasten je nach Wert in Schleife Farbe zuweisen und einfaerben
-        tastatur = grayImage.clone();
+        tastatur = grayImage_edit.clone();
         cvtColor(tastatur, tastatur, COLOR_GRAY2BGR);   // muss, da hier im Gegensatz zur Vorbereitung Bild (aus Video) nicht farbig ist!
         
         for (int i=0; i<tasten_labels.size(); i++) {
@@ -407,7 +409,7 @@ public:
             // Ueberpruefen, ob die schon im alten waren
             for (vector<int> y : cc_tiefen_blau) {
                 // Vergleich einfach, ob neues CC gleich mit irgendeinem alten ist
-                if ((x[0] == y[0]) and (x[1] == y[1])) {
+                if ((x[0] == y[0]) && (x[1] == y[1])) {
                     // Gefunden, also muessen beide Objekte geoescht werden und aeussere Schleife weitergemacht werden (aka naechstes Element)
                     cc_tiefen_blau.erase(find(cc_tiefen_blau.begin(), cc_tiefen_blau.end(), y));
                     cc_tiefen_rot.erase(find(cc_tiefen_rot.begin(), cc_tiefen_rot.end(), x));
@@ -461,8 +463,8 @@ public:
                 int anzahl = 0;
                 for (int i=rot[0]; i<rot[0]+rot[2]; i++) {                          // CC.X <= i < CC.X + CC.Breite &
                     for (int j=rot[1]; j<rot[1]+rot[3]; j++) {                      // CC.Y <= j < CC.Y + CC.Hoehe ->
-                        if (((i >= taste[0]) and (i < taste[0]+taste[2]))           //      Taste.X <= i < Taste.X + Taste.Breite &
-                            and ((j >= taste[1]) and ( j < taste[1]+taste[3]))) {   //      Taste.Y <= j < Taste.Y + Taste.Hoehe ->
+                        if (((i >= taste[0]) && (i < taste[0]+taste[2]))           //      Taste.X <= i < Taste.X + Taste.Breite &
+                            && ((j >= taste[1]) && ( j < taste[1]+taste[3]))) {   //      Taste.Y <= j < Taste.Y + Taste.Hoehe ->
                             anzahl++;                                               //          Drin: Anzahl + 1
                         }
                     }
@@ -554,10 +556,10 @@ private:
 	int mode;                                       // Der Modus, in dem das Programm ablaeuft (Wiedergabe, Aufnahme, Auswertung)
 
 	// Praktikum 2
-	Mat mit20_bild                                  // Das Grauwertbild, das ueber 20 Frames gemittelt ist (wird nicht weiter verwendet)
+	Mat mit20_bild;                                  // Das Grauwertbild, das ueber 20 Frames gemittelt ist (wird nicht weiter verwendet)
     vector<int> mit_ueber_20_frames;                // Der Vektor fuer die 20 Frames gemittelt (wird nicht weiter verwendet)
     int glaettung_frame;                            // Gibt an, wie viele Frames durchlaufen wurden, um 20 Frames zu mitteln (wird nicht weiter verwendet)
-    Mat med_bild                                    // Das Grauwertbild, das ueber den Median ermittelt wurde => WIRD WEITER VERWENDET!
+	Mat med_bild;                                    // Das Grauwertbild, das ueber den Median ermittelt wurde => WIRD WEITER VERWENDET!
     Mat mit_bild;                                   // Das Grauwertbild, das ueber den Mittelwert ermittelt wurde (wird nicht weiter verwendet)
     Mat grau_otsu;                                  // Das Grauwertbild, das mit OTSU segmentiert wurde
     bool hochkant;                                  // Gibt an, ob das Bild hochkant ist oder nicht!

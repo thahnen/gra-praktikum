@@ -64,5 +64,5 @@ Das Praktikumsprojekt bestehend aus einer großen Aufgabe für 3 Praktikumstermi
 1. ZIP-Datei "royale.zip":
 * SDK Bibliothek für die verwendete ["PMD Technologies CamBoard pico flexx" - Kamera](https://www.automation24.de/entwicklungs-kit-pmd-vision-r-camboard-pico-flexx-700-000-094)
 2. Ordner "Visual Studio":
-* **GRA-Praktikum** beinhaltet das Visual Studio Projekt
+* **GRA-Praktikum** beinhaltet das Visual Studio Projekt -> muss immer auf dem Desktop benutzt werden!
 * **GRA-Praktikum.props** beinhaltet Einstellungen für Linker etc.
