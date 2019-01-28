@@ -62,24 +62,25 @@ public:
         } else {
             auswertung_geglaettete_grauwerte();
 
-            auswertung_tiefenbild();
-            
             /* DAS HIER WAR PRAKTIKUM 2 !!!
             glaettung_grauwerte();
-            
+             
             if (glaettung_frame > 21) {
                 auswertung_geglaettete_grauwerte();
-                
+             
                 if (debug) {
                     imshow("OTSU", grau_otsu);
                 }
-                
+             
                 imshow("Mit20", mit20_bild);
                 imshow("Med", med_bild);
                 imshow("Mit", mit_bild);
-                
+             
                 imshow("Tastatur", tastatur);
-            }*/
+             }
+             */
+            
+            auswertung_tiefenbild();
         }
 
 		/********************************************************************************************************************************************************\
@@ -125,7 +126,7 @@ public:
 		double min, max;
 		minMaxLoc(zImage, &min, &max, 0, 0, (InputArray)mask);
 
-		// Skalierung berechnen & Bild skalieren
+		// Skalierung berechnen & Bild skalieren (musste in Praktikum 3 noch angepasst werden, war nicht richtig skaliert)
 		double scale = 255 / (max - min);
 		convertScaleAbs(zImage, depth_CV_8UC1, scale, (-min*scale));
         
@@ -136,8 +137,6 @@ public:
 		Mat color_map;
 		applyColorMap(depth_CV_8UC1, color_map, COLORMAP_RAINBOW);
 		depthImage_edit = color_map;
-
-		//cvtColor(depthImage_edit, depthImage_edit_gray, CV_BGR2GRAY);
 	}
 
     // Praktikum 1
@@ -237,7 +236,7 @@ public:
 		// ggf. vor OTSU noch ein Closing durchfuehren? -> Frau P.-F. meinte nicht noetig
 		grau_otsu = med_bild.clone();
         //closing(grau_otsu, Mat());
-		threshold(med_bild, grau_otsu, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU); // hier ggf. wie in der Vorbereitung abaendern wenn OpenCV4!
+		threshold(med_bild, grau_otsu, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
 
 		// Segmentierte Regionen labeln -> Pixel zu Connected Components zusammenfassen
 		Mat label_image, stats, centroid;
@@ -254,8 +253,8 @@ public:
             
             // Hier muss irgendwie aussortiert werden, welche Components passen und welche nicht :>
             // 1. Flaeche darf nicht unter oder ueber Schwellwert liegen (hier: 1000 < Flaeche < 2000)
-            // 2. Breite im gleichen Rahmen wie die anderen (+/-5) UND Hoehe im gleichen Rahmen wie die anderen (+/-10)
-            // WERTE IM PRAKTIKUM AENDERN; DIE HIER SIND FUERS VIDEO!
+            // 2. Breite im gleichen Rahmen wie die anderen (+/-10) UND Hoehe im gleichen Rahmen wie die anderen (+/-10)
+            // WERTE IM PRAKTIKUM AENDERN; DIE HIER SIND FUERS VIDEO! -> mussten nicht abgeaendert werden!
             int untere = 1000;
             int obere = 2000;
             if ((stats.at<int>(i, CC_STAT_AREA) > untere) && (stats.at<int>(i, CC_STAT_AREA) < obere)) {
@@ -347,7 +346,7 @@ public:
         Mat tiefen_hist = histogramm(tiefenbild);
         imshow("Histogramm (Tiefenbild)", tiefen_hist);
         
-        // Gauss-Filter auf Histogramm anwenden (Groesse egal? hier mal 3x3 genommen)
+        // Gauss-Filter auf Histogramm anwenden (Groesse egal? Hier mal 3x3 genommen)
         GaussianBlur(hist_values, hist_values, Size(3, 3), 0);
         
         // Schwellwert suchen (hier muss durch hist_values iteriert werden)
@@ -364,7 +363,7 @@ public:
         }
         
         for (int i=highest_position; i>=0; i--) {
-            uchar wert_an_punkt_i = hist_values.at<float>(i); // gibt ja nur eine Zeile an Werten!
+            uchar wert_an_punkt_i = hist_values.at<float>(i);   // gibt ja nur eine Zeile an Werten!
             if (wert_an_punkt_i > value) {
                 break;
             }
@@ -407,7 +406,6 @@ public:
 		}
         
         // Tasten in Bild mit Roten Segmenten zeichnen (Taste hervorheben)
-
 		for (int i=0; i < cc.size(); i++) {
 			int x = cc[i][0];
 			int y = cc[i][1];
@@ -448,12 +446,14 @@ public:
 		cout << "F: " << anzahl_pro_taste[5] << endl;
 		cout << "G: " << anzahl_pro_taste[6] << endl;
 		cout << "H: " << anzahl_pro_taste[7] << endl;
+        
         // Tasten in Tiefenbild einzeichnen (Taste hervorheben), Buchstaben ausgeben
     }
     
     /********************************************************************************************************************************************************\
      * HILFSFUNKTIONEN
     \********************************************************************************************************************************************************/
+    // ggf noch ueberarbeiten, damit nicht float sondern uchar verwendet wird? Ueberall sonst ist ja uchar!
     Mat histogramm(Mat& bild) {
         int hist_w = 256;
         int hist_h = 450;
@@ -464,39 +464,18 @@ public:
         calcHist(&bild, 1, 0, Mat(), hist, 1, &hist_w, &hist_range, true, false);
         normalize(hist, hist, 0, hist_bild.rows, NORM_MINMAX, -1, Mat());
         hist_values = hist.clone();
-        for (int i=0; i<hist_w; i++) {
-            line(hist_bild, Point(i, hist_h-cvRound(hist.at<float>(i))), Point(i, hist_h), Scalar(255, 255, 255));
-        }
+        for (int i=0; i<hist_w; i++) { line(hist_bild, Point(i, hist_h-cvRound(hist.at<float>(i))), Point(i, hist_h), Scalar(255, 255, 255)); }
         return hist_bild;
     }
     
-    void opening(Mat src, Mat element) {
-        // open(src, element) = dilate(erode(src, element))
+    void opening(Mat src, Mat element) {    // open(src, element) = dilate(erode(src, element))
         erode(src, src, element);
         dilate(src, src, element);
     }
     
-    void closing(Mat src, Mat element) {
-        // close(src, element) = erode(dilate(src, element))
+    void closing(Mat src, Mat element) {    // close(src, element) = erode(dilate(src, element))
         dilate(src, src, element);
         erode(src, src, element);
-    }
-    
-    string type2str(int type) {
-        string r;
-        switch (type & CV_MAT_DEPTH_MASK) {
-            case CV_8U:  r = "8U"; break;
-            case CV_8S:  r = "8S"; break;
-            case CV_16U: r = "16U"; break;
-            case CV_16S: r = "16S"; break;
-            case CV_32S: r = "32S"; break;
-            case CV_32F: r = "32F"; break;
-            case CV_64F: r = "64F"; break;
-            default:     r = "User"; break;
-        }
-        r += "C";
-        r += ((1+(type >> CV_CN_SHIFT))+'0');
-        return r;
     }
 	/********************************************************************************************************************************************************\
 	* Praktikum 1/2/3 Inhaltliche Veraenderungen
